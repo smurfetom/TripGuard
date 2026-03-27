@@ -1,0 +1,72 @@
+export type TripMode = 'RIH' | 'POOH';
+export type UnitSystem = 'metric' | 'imperial';
+export type VolumeUnit = 'm3' | 'bbl' | 'liters' | 'gallons';
+export type DeviationStatus = 'OK' | 'WARNING' | 'ALARM';
+export type EventType = 'ADD_STAND' | 'SLUG' | 'SURFACE_RESET' | 'COMMENT';
+export type SectionType = 'BHA' | 'DP' | 'HWDP' | 'CUSTOM';
+export type DisplacementMode = 'manual' | 'open_end' | 'closed_end';
+
+export interface Section {
+  id: string;
+  type: SectionType;
+  name: string;
+  displacementMode: DisplacementMode;
+  length: number;
+  standLength: number;
+  displacementPerMeter: number;
+  displacementPerStand: number;
+  openEndDisplacementPerStand?: number;
+  closedEndDisplacementPerStand?: number;
+  standCapacity?: number;
+  calculatedStands: number;
+  order: number;
+}
+
+export interface Event {
+  id: string;
+  type: EventType;
+  actualTT: number;
+  expectedTT: number;
+  diff: number;
+  standNumber: number;
+  slugVolume?: number;
+  comment?: string;
+  timestamp: number;
+}
+
+export interface Segment {
+  id: string;
+  startStand: number;
+  startExpected: number;
+  startActual: number;
+  events: Event[];
+  createdAt: number;
+}
+
+export interface TripSession {
+  id: string;
+  totalStands: number;
+  mode: TripMode;
+  unitSystem: UnitSystem;
+  volumeUnit: VolumeUnit;
+  tolerance: number;
+  currentStand: number;
+  sections: Section[];
+  segments: Segment[];
+  activeSegmentId: string | null;
+  isActive: boolean;
+  initialTT: number;
+  accumulatedSlugVolume: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TripConfig {
+  totalStands: number;
+  mode: TripMode;
+  unitSystem: UnitSystem;
+  volumeUnit: VolumeUnit;
+  tolerance: number;
+  sections: Section[];
+  initialTT: number;
+}
