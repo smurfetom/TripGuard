@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TripSession } from '../types';
+import { SetupTemplate, TripSession } from '../types';
 
 const STORAGE_KEYS = {
   SESSION: '@tripguard_session',
   SETTINGS: '@tripguard_settings',
+  TEMPLATES: '@tripguard_templates',
 };
 
 export async function saveSession(session: TripSession): Promise<void> {
@@ -53,5 +54,26 @@ export async function loadSettings(): Promise<Record<string, unknown> | null> {
   } catch (error) {
     console.error('Failed to load settings:', error);
     return null;
+  }
+}
+
+export async function saveTemplates(templates: SetupTemplate[]): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+  } catch (error) {
+    console.error('Failed to save templates:', error);
+  }
+}
+
+export async function loadTemplates(): Promise<SetupTemplate[]> {
+  try {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.TEMPLATES);
+    if (data) {
+      return JSON.parse(data) as SetupTemplate[];
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to load templates:', error);
+    return [];
   }
 }

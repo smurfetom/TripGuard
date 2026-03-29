@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
 import { Button, ValueDisplay, ProgressBar, InputPad, TrendSlope, EventItem } from '../components';
 import { useTripStore } from '../store/tripStore';
+import { exportTripCsv } from '../utils/export';
 
 type DrillerScreenProps = {
   onOpenMirror: () => void;
@@ -76,6 +77,14 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
     addComment(commentValue.trim());
     setCommentValue('');
     setShowCommentModal(false);
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      await exportTripCsv(session);
+    } catch {
+      Alert.alert('Export Failed', 'Unable to export the trip log right now.');
+    }
   };
 
   const handleEndTrip = () => {
@@ -154,6 +163,9 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerAction} onPress={onOpenMirror}>
               <Text style={styles.headerActionText}>Mirror</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerAction} onPress={handleExportCsv}>
+              <Text style={styles.headerActionText}>CSV</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerAction} onPress={handleNewTrip}>
               <Text style={styles.headerActionText}>Setup</Text>

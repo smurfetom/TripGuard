@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,13 +9,24 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS, SECTION_TYPES, DISPLACEMENT_MODES } from '../constants/theme';
+import {
+  COLORS,
+  SPACING,
+  FONT_SIZES,
+  BORDER_RADIUS,
+  SECTION_TYPES,
+  DISPLACEMENT_MODES,
+  SECTION_TYPE_PRESETS,
+} from '../constants/theme';
 import { Button, SectionCard } from '../components';
 import { useTripStore } from '../store/tripStore';
-import { TripMode, Section, SectionType, VolumeUnit, UnitSystem, DisplacementMode } from '../types';
+import { TripMode, Section, SectionType, VolumeUnit, UnitSystem, DisplacementMode, SetupTemplate } from '../types';
 import { createId } from '../utils/id';
+import { loadTemplates, saveTemplates } from '../utils/storage';
+import { BUILT_IN_TEMPLATES, cloneTemplate } from '../utils/templates';
 
 type SetupScreenProps = {
   onStartTrip: () => void;
@@ -43,8 +54,84 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
   const [openEndDisplacementPerStand, setOpenEndDisplacementPerStand] = useState('');
   const [closedEndDisplacementPerStand, setClosedEndDisplacementPerStand] = useState('');
   const [standCapacity, setStandCapacity] = useState('');
+  const [templates, setTemplates] = useState<SetupTemplate[]>([]);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+
+  useEffect(() => {
+    loadTemplates().then(setTemplates);
+  }, []);
 
   const parseNumberInput = (value: string) => parseFloat(value.replace(',', '.')) || 0;
+
+  const applySectionPreset = (type: SectionType) => {
+    const preset = SECTION_TYPE_PRESETS[type];
+    setSectionType(type);
+    setSectionName(preset.name);
+    setStandLength(preset.standLength);
+    setSectionLength(preset.sectionLength);
+    setDisplacementPerStand(preset.displacementPerStand);
+    setOpenEndDisplacementPerStand('');
+    setClosedEndDisplacementPerStand('');
+    setStandCapacity(preset.standCapacity);
+    setDisplacementMode('manual');
+  };
+
+  const reindexSections = (items: Section[]) => items.map((section, index) => ({ ...section, order: index }));
+
+  const applyTemplate = (template: SetupTemplate) => {
+    const cloned = cloneTemplate(template);
+    setMode(cloned.mode);
+    setUnitSystem(cloned.unitSystem);
+    setVolumeUnit(cloned.volumeUnit);
+    setTolerance(cloned.tolerance.toString());
+    setTotalStands(cloned.totalStands.toString());
+    setInitialTT(cloned.initialTT.toString());
+    setSections(reindexSections(cloned.sections));
+    setShowTemplateModal(false);
+    setShowSectionEditor(false);
+  };
+
+  const saveCurrentTemplate = async () => {
+    const name = templateName.trim();
+    if (!name) {
+      Alert.alert('Missing Template Name', 'Enter a name before saving the template.');
+      return;
+    }
+    if (sections.length === 0) {
+      Alert.alert('Missing String Profile', 'Add at least one section before saving a template.');
+      return;
+    }
+
+    const newTemplate: SetupTemplate = {
+      id: createId(),
+      name,
+      mode,
+      unitSystem,
+      volumeUnit,
+      tolerance: parseNumberInput(tolerance),
+      totalStands: parseInt(totalStands, 10) || totalSectionStands,
+      initialTT: parseNumberInput(initialTT),
+      sections: reindexSections(sections).map((section) => ({ ...section, id: createId() })),
+    };
+
+    const updatedTemplates = [...templates, newTemplate];
+    setTemplates(updatedTemplates);
+    await saveTemplates(updatedTemplates);
+    setTemplateName('');
+    setShowTemplateModal(false);
+  };
+
+  const moveSection = (index: number, direction: -1 | 1) => {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= sections.length) return;
+    const updated = [...sections];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(nextIndex, 0, moved);
+    setSections(reindexSections(updated));
+  };
+
+  const templateOptions = useMemo(() => [...BUILT_IN_TEMPLATES, ...templates], [templates]);
 
   const getActiveDisplacementPerStand = () => {
     if (displacementMode === 'open_end') {
@@ -92,10 +179,10 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
     };
     
     if (editingSection) {
-      setSections(sections.map(s => s.id === editingSection.id ? newSection : s));
-    } else {
-      setSections([...sections, newSection]);
-    }
+        setSections(reindexSections(sections.map(s => s.id === editingSection.id ? newSection : s)));
+      } else {
+        setSections(reindexSections([...sections, newSection]));
+      }
     
     resetSectionForm();
   };
@@ -103,15 +190,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
   const resetSectionForm = () => {
     setShowSectionEditor(false);
     setEditingSection(null);
-    setSectionType('DP');
-    setSectionName('Drill Pipe');
-    setDisplacementMode('manual');
-    setSectionLength('2700');
-    setStandLength('27');
-    setDisplacementPerStand('0.015');
-    setOpenEndDisplacementPerStand('');
-    setClosedEndDisplacementPerStand('');
-    setStandCapacity('');
+    applySectionPreset('DP');
   };
 
   const handleEditSection = (section: Section) => {
@@ -164,6 +243,11 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
   };
 
   const totalSectionStands = sections.reduce((sum, s) => sum + s.calculatedStands, 0);
+  const editorStandLength = parseNumberInput(standLength);
+  const editorSectionLength = parseNumberInput(sectionLength);
+  const editorCalculatedStands = editorStandLength > 0 ? Math.round(editorSectionLength / editorStandLength) : 0;
+  const editorActiveDisplacement = getActiveDisplacementPerStand();
+  const canStartTrip = sections.length > 0 || (parseInt(totalStands, 10) || 0) > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -173,6 +257,16 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
       >
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
           <Text style={styles.title}>Trip Setup</Text>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>TEMPLATES</Text>
+            </View>
+            <View style={styles.templateActions}>
+              <Button title="Load Template" variant="secondary" onPress={() => setShowTemplateModal(true)} style={styles.templateButton} />
+              <Button title="Save Current" variant="outline" onPress={() => setShowTemplateModal(true)} style={styles.templateButton} />
+            </View>
+          </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>MODE</Text>
@@ -269,6 +363,10 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                 section={section}
                 onEdit={() => handleEditSection(section)}
                 onDelete={() => handleDeleteSection(section.id)}
+                onMoveUp={() => moveSection(section.order, -1)}
+                onMoveDown={() => moveSection(section.order, 1)}
+                isFirst={section.order === 0}
+                isLast={section.order === sections.length - 1}
               />
             ))}
             
@@ -296,10 +394,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                     <TouchableOpacity
                       key={type.value}
                       style={[styles.optionButton, sectionType === type.value && styles.toggleActive]}
-                      onPress={() => {
-                        setSectionType(type.value as SectionType);
-                        setSectionName(type.label);
-                      }}
+                      onPress={() => applySectionPreset(type.value as SectionType)}
                     >
                       <Text style={[styles.optionButtonText, sectionType === type.value && styles.toggleTextActive]}>
                         {type.label}
@@ -403,7 +498,16 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
               <Text style={styles.helperText}>
                 Stand capacity is stored for reference only and does not affect trip volume calculations.
               </Text>
-              
+
+              <View style={styles.previewCard}>
+                <Text style={styles.previewTitle}>Live Preview</Text>
+                <Text style={styles.previewLine}>{sectionName || 'Unnamed'} • {sectionType}</Text>
+                <Text style={styles.previewLine}>Basis: {displacementMode.replace('_', ' ')}</Text>
+                <Text style={styles.previewLine}>Stands: {editorCalculatedStands}</Text>
+                <Text style={styles.previewLine}>Active displacement: {editorActiveDisplacement.toFixed(3)} {volumeUnit}/stand</Text>
+                <Text style={styles.previewLine}>Stand capacity: {standCapacity || '--'} {volumeUnit}</Text>
+              </View>
+               
               <Button
                 title={editingSection ? 'Update Section' : 'Add Section'}
                 onPress={handleAddSection}
@@ -419,9 +523,40 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
             title="Start Trip"
             onPress={handleStartTrip}
             size="large"
+            disabled={!canStartTrip}
           />
         </View>
       </KeyboardAvoidingView>
+
+      <Modal visible={showTemplateModal} transparent animationType="fade" onRequestClose={() => setShowTemplateModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Setup Templates</Text>
+            <TextInput
+              style={styles.input}
+              value={templateName}
+              onChangeText={setTemplateName}
+              placeholder="Template name"
+              placeholderTextColor={COLORS.textSecondary}
+            />
+            <View style={styles.templateActions}>
+              <Button title="Save Current" onPress={saveCurrentTemplate} style={styles.templateButton} />
+              <Button title="Close" variant="secondary" onPress={() => setShowTemplateModal(false)} style={styles.templateButton} />
+            </View>
+            <ScrollView style={styles.templateList}>
+              {templateOptions.map((template) => (
+                <TouchableOpacity key={template.id} style={styles.templateRow} onPress={() => applyTemplate(template)}>
+                  <View>
+                    <Text style={styles.templateName}>{template.name}</Text>
+                    <Text style={styles.templateMeta}>{template.mode} • {template.sections.length} sections • {template.totalStands} stands</Text>
+                  </View>
+                  <Text style={styles.templateType}>{template.isBuiltIn ? 'Built-in' : 'Saved'}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -464,6 +599,13 @@ const styles = StyleSheet.create({
   sectionCount: {
     fontSize: FONT_SIZES.caption,
     color: COLORS.accent,
+  },
+  templateActions: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  templateButton: {
+    flex: 1,
   },
   toggle: {
     flexDirection: 'row',
@@ -545,6 +687,25 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: SPACING.md,
   },
+  previewCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  previewTitle: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.accent,
+    letterSpacing: 1,
+    marginBottom: SPACING.sm,
+  },
+  previewLine: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.xs,
+  },
   editor: {
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.lg,
@@ -565,5 +726,51 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  modalCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.lg,
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: FONT_SIZES.heading,
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+    marginBottom: SPACING.md,
+  },
+  templateList: {
+    marginTop: SPACING.md,
+  },
+  templateRow: {
+    backgroundColor: COLORS.background,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  templateName: {
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textPrimary,
+    fontWeight: '600',
+  },
+  templateMeta: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
+  },
+  templateType: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.accent,
   },
 });

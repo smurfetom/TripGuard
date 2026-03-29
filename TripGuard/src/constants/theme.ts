@@ -56,3 +56,34 @@ export const DISPLACEMENT_MODES = [
   { value: 'open_end', label: 'Open End' },
   { value: 'closed_end', label: 'Closed End' },
 ] as const;
+
+export const SECTION_TYPE_PRESETS = {
+  BHA: {
+    name: 'BHA',
+    standLength: '27',
+    sectionLength: '81',
+    displacementPerStand: '0.120',
+    standCapacity: '',
+  },
+  DP: {
+    name: 'Drill Pipe',
+    standLength: '27',
+    sectionLength: '2700',
+    displacementPerStand: '0.015',
+    standCapacity: '0.180',
+  },
+  HWDP: {
+    name: 'HWDP',
+    standLength: '27',
+    sectionLength: '270',
+    displacementPerStand: '0.021',
+    standCapacity: '0.180',
+  },
+  CUSTOM: {
+    name: 'Custom',
+    standLength: '27',
+    sectionLength: '270',
+    displacementPerStand: '0.015',
+    standCapacity: '',
+  },
+} as const;

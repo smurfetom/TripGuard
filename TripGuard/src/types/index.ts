@@ -70,3 +70,16 @@ export interface TripConfig {
   sections: Section[];
   initialTT: number;
 }
+
+export interface SetupTemplate {
+  id: string;
+  name: string;
+  mode: TripMode;
+  unitSystem: UnitSystem;
+  volumeUnit: VolumeUnit;
+  tolerance: number;
+  totalStands: number;
+  initialTT: number;
+  sections: Section[];
+  isBuiltIn?: boolean;
+}

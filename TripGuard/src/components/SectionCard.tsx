@@ -7,9 +7,13 @@ interface SectionCardProps {
   section: Section;
   onEdit: () => void;
   onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
-export function SectionCard({ section, onEdit, onDelete }: SectionCardProps) {
+export function SectionCard({ section, onEdit, onDelete, onMoveUp, onMoveDown, isFirst, isLast }: SectionCardProps) {
   const getDisplacementLabel = () => {
     switch (section.displacementMode) {
       case 'open_end':
@@ -51,6 +55,12 @@ export function SectionCard({ section, onEdit, onDelete }: SectionCardProps) {
       </View>
       
       <View style={styles.actions}>
+        <TouchableOpacity onPress={onMoveUp} style={styles.actionButton} disabled={isFirst}>
+          <Text style={[styles.actionText, isFirst && styles.disabledText]}>↑</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={onMoveDown} style={styles.actionButton} disabled={isLast}>
+          <Text style={[styles.actionText, isLast && styles.disabledText]}>↓</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={onEdit} style={styles.actionButton}>
           <Text style={styles.actionText}>✎</Text>
         </TouchableOpacity>
@@ -116,5 +126,8 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     color: COLORS.danger,
+  },
+  disabledText: {
+    color: COLORS.textSecondary,
   },
 });
