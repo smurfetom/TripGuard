@@ -25,10 +25,18 @@ export interface Section {
 export interface Event {
   id: string;
   type: EventType;
+  observedVolume?: number;
+  totalVolume?: number;
+  expectedTotalVolume?: number;
   actualTT: number;
   expectedTT: number;
   diff: number;
   standNumber: number;
+  progressedStands?: number;
+  calculatedCumulativeVolume?: number;
+  actualCumulativeVolume?: number;
+  gainLossVolume?: number;
+  slugCorrectionVolume?: number;
   slugVolume?: number;
   comment?: string;
   timestamp: number;
@@ -50,13 +58,23 @@ export interface TripSession {
   unitSystem: UnitSystem;
   volumeUnit: VolumeUnit;
   tolerance: number;
+  startStand: number;
+  loggingInterval: number;
+  steelDisplacementPerMeter: number;
+  averageStandLength: number;
+  defaultDisplacementPerStand: number;
   currentStand: number;
   sections: Section[];
   segments: Segment[];
   activeSegmentId: string | null;
   isActive: boolean;
   initialTT: number;
-  accumulatedSlugVolume: number;
+  resetBaselineVolume: number;
+  resetAccumulatedBase: number;
+  resetCalculatedBase: number;
+  slugMudWeight?: number;
+  holeMudWeight?: number;
+  accumulatedSlugCorrectionVolume: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -69,6 +87,12 @@ export interface TripConfig {
   tolerance: number;
   sections: Section[];
   initialTT: number;
+  startStand: number;
+  loggingInterval: number;
+  steelDisplacementPerMeter: number;
+  averageStandLength: number;
+  slugMudWeight?: number;
+  holeMudWeight?: number;
 }
 
 export interface SetupTemplate {
@@ -80,6 +104,12 @@ export interface SetupTemplate {
   tolerance: number;
   totalStands: number;
   initialTT: number;
+  startStand: number;
+  loggingInterval: number;
+  steelDisplacementPerMeter: number;
+  averageStandLength: number;
+  slugMudWeight?: number;
+  holeMudWeight?: number;
   sections: Section[];
   isBuiltIn?: boolean;
 }

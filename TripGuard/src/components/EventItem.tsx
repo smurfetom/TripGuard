@@ -47,27 +47,32 @@ export function EventItem({ event, volumeUnit }: EventItemProps) {
         <Text style={styles.time}>{formatTime(event.timestamp)}</Text>
       </View>
       
-      {event.type === 'COMMENT' && event.comment && (
+      {(event.type === 'COMMENT' || event.type === 'SURFACE_RESET') && event.comment && (
         <Text style={styles.comment}>{event.comment}</Text>
       )}
       
       <View style={styles.values}>
         <View style={styles.valueItem}>
-          <Text style={styles.valueLabel}>Actual</Text>
-          <Text style={styles.value}>{event.actualTT.toFixed(2)}</Text>
+          <Text style={styles.valueLabel}>Observed</Text>
+          <Text style={styles.value}>{event.observedVolume?.toFixed(2) ?? '--'}</Text>
+        </View>
+
+        <View style={styles.valueItem}>
+          <Text style={styles.valueLabel}>Accum.</Text>
+          <Text style={styles.value}>{event.actualCumulativeVolume?.toFixed(2) ?? '--'}</Text>
         </View>
         
         {event.type !== 'COMMENT' && (
           <>
             <View style={styles.valueItem}>
-              <Text style={styles.valueLabel}>Expected</Text>
-              <Text style={styles.value}>{event.expectedTT.toFixed(2)}</Text>
+              <Text style={styles.valueLabel}>Calc.</Text>
+              <Text style={styles.value}>{event.calculatedCumulativeVolume?.toFixed(2) ?? '--'}</Text>
             </View>
             
             <View style={styles.valueItem}>
-              <Text style={styles.valueLabel}>Diff</Text>
-              <Text style={[styles.value, { color: getStatusColor(event.diff) }]}>
-                {event.diff > 0 ? '+' : ''}{event.diff.toFixed(2)}
+              <Text style={styles.valueLabel}>Gain/Loss</Text>
+              <Text style={[styles.value, { color: getStatusColor(event.gainLossVolume ?? 0) }]}> 
+                {(event.gainLossVolume ?? 0) > 0 ? '+' : ''}{(event.gainLossVolume ?? 0).toFixed(2)}
               </Text>
             </View>
           </>

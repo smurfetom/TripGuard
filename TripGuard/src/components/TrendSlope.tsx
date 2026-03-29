@@ -1,15 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
-import { Event, Section } from '../types';
+import { Event } from '../types';
 
 interface TrendSlopeProps {
   events: Event[];
   totalStands: number;
-  initialTT: number;
   tolerance: number;
-  sections: Section[];
-  mode: 'RIH' | 'POOH';
   currentStand: number;
   style?: ViewStyle;
 }
@@ -17,150 +14,136 @@ interface TrendSlopeProps {
 export function TrendSlope({
   events,
   totalStands,
-  initialTT,
   tolerance,
   currentStand,
   style,
 }: TrendSlopeProps) {
-  const addStandEvents = events.filter(e => e.type === 'ADD_STAND');
-  
+  const addStandEvents = events.filter((event) => event.type === 'ADD_STAND');
+
   if (addStandEvents.length === 0) {
     return (
       <View style={[styles.container, style]}>
-        <Text style={styles.emptyText}>No data yet</Text>
+        <Text style={styles.emptyText}>No logged volumes yet</Text>
       </View>
     );
   }
 
-  const getStatusColor = (diff: number): string => {
-    const absDiff = Math.abs(diff);
+  const values = addStandEvents.flatMap((event) => [
+    event.calculatedCumulativeVolume ?? 0,
+    event.actualCumulativeVolume ?? 0,
+  ]);
+  const maxValue = Math.max(0, ...values);
+  const minValue = Math.min(0, ...values);
+  const range = maxValue - minValue || 1;
+  const graphHeight = 140;
+  const graphWidth = 280;
+  const paddingX = 12;
+  const paddingY = 16;
+  const innerWidth = graphWidth - paddingX * 2;
+  const innerHeight = graphHeight - paddingY * 2;
+
+  const getStatusColor = (gainLoss: number) => {
+    const absDiff = Math.abs(gainLoss);
     if (absDiff <= tolerance) return COLORS.success;
     if (absDiff <= tolerance * 2) return COLORS.warning;
     return COLORS.danger;
   };
 
-  const maxVolume = Math.max(
-    initialTT,
-    ...addStandEvents.map(e => Math.max(e.actualTT, e.expectedTT))
-  );
-  const minVolume = Math.min(
-    initialTT,
-    ...addStandEvents.map(e => Math.min(e.actualTT, e.expectedTT))
-  );
-  const volumeRange = maxVolume - minVolume || 1;
+  const getX = (progressedStands: number) => paddingX + (progressedStands / Math.max(totalStands, 1)) * innerWidth;
+  const getY = (volume: number) => paddingY + innerHeight - ((volume - minValue) / range) * innerHeight;
 
-  const graphHeight = 120;
-  const graphWidth = 280;
-  const paddingX = 10;
-  const paddingY = 10;
-  const innerWidth = graphWidth - paddingX * 2;
-  const innerHeight = graphHeight - paddingY * 2;
-
-  const getX = (stand: number) => {
-    return paddingX + (stand / totalStands) * innerWidth;
-  };
-
-  const getY = (volume: number) => {
-    return paddingY + innerHeight - ((volume - minVolume) / volumeRange) * innerHeight;
-  };
-
-  const points = addStandEvents.map(e => ({
-    x: getX(e.standNumber),
-    y: getY(e.actualTT),
-    expectedY: getY(e.expectedTT),
-    diff: e.diff,
+  const calculatedPoints = addStandEvents.map((event) => ({
+    x: getX(event.progressedStands ?? 0),
+    y: getY(event.calculatedCumulativeVolume ?? 0),
   }));
 
-  const lastPoint = points[points.length - 1];
-  const lastDiff = lastPoint?.diff || 0;
+  const accumulatedPoints = addStandEvents.map((event) => ({
+    x: getX(event.progressedStands ?? 0),
+    y: getY(event.actualCumulativeVolume ?? 0),
+    gainLoss: event.gainLossVolume ?? 0,
+  }));
+
+  const drawSegments = (
+    points: Array<{ x: number; y: number; gainLoss?: number }>,
+    color: string,
+    dynamicColor = false
+  ) => points.slice(0, -1).map((point, index) => {
+    const nextPoint = points[index + 1];
+    const dx = nextPoint.x - point.x;
+    const dy = nextPoint.y - point.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+    return (
+      <View
+        key={`${color}-${index}`}
+        style={[
+          styles.segment,
+          {
+            left: point.x,
+            top: point.y,
+            width: length,
+            transform: [{ rotate: `${angle}deg` }],
+            backgroundColor: dynamicColor ? getStatusColor(point.gainLoss ?? 0) : color,
+          },
+        ]}
+      />
+    );
+  });
+
+  const lastGainLoss = addStandEvents[addStandEvents.length - 1]?.gainLossVolume ?? 0;
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={styles.title}>TREND</Text>
-      
+      <Text style={styles.title}>CALCULATED VS ACCUMULATED</Text>
+
       <View style={styles.legend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: COLORS.textSecondary }]} />
-          <Text style={styles.legendText}>Expected</Text>
+          <Text style={styles.legendText}>Calculated</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: getStatusColor(lastDiff) }]} />
-          <Text style={styles.legendText}>Actual</Text>
+          <View style={[styles.legendDot, { backgroundColor: getStatusColor(lastGainLoss) }]} />
+          <Text style={styles.legendText}>Accumulated</Text>
         </View>
       </View>
 
       <View style={[styles.graph, { width: graphWidth, height: graphHeight }]}>
+        <View style={[styles.zeroLine, { top: getY(0) }]} />
         <View style={styles.graphArea}>
-          {points.map((point, i) => (
-            <View key={i}>
-              <View
-                style={[
-                  styles.expectedPoint,
-                  {
-                    left: point.x - 2,
-                    top: point.expectedY - 2,
-                  },
-                ]}
-              />
-              <View
-                style={[
-                  styles.actualPoint,
-                  {
-                    left: point.x - 3,
-                    top: point.y - 3,
-                    backgroundColor: getStatusColor(point.diff),
-                  },
-                ]}
-              />
-            </View>
+          {drawSegments(calculatedPoints, COLORS.textSecondary)}
+          {drawSegments(accumulatedPoints, COLORS.accent, true)}
+
+          {calculatedPoints.map((point, index) => (
+            <View key={`calc-${index}`} style={[styles.calculatedPoint, { left: point.x - 2, top: point.y - 2 }]} />
           ))}
-          
-          {points.length > 1 && (
-            <View style={styles.trendLine}>
-              {points.slice(0, -1).map((point, i) => {
-                const nextPoint = points[i + 1];
-                const dx = nextPoint.x - point.x;
-                const dy = nextPoint.y - point.y;
-                const length = Math.sqrt(dx * dx + dy * dy);
-                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-                
-                return (
-                  <View
-                    key={i}
-                    style={[
-                      styles.lineSegment,
-                      {
-                        left: point.x,
-                        top: point.y,
-                        width: length,
-                        transform: [{ rotate: `${angle}deg` }],
-                        backgroundColor: getStatusColor(point.diff),
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
-          )}
-          
-          <View style={[styles.origin, { left: getX(0) - 3, top: getY(initialTT) - 3 }]} />
+
+          {accumulatedPoints.map((point, index) => (
+            <View
+              key={`acc-${index}`}
+              style={[
+                styles.accumulatedPoint,
+                {
+                  left: point.x - 3,
+                  top: point.y - 3,
+                  backgroundColor: getStatusColor(point.gainLoss),
+                },
+              ]}
+            />
+          ))}
         </View>
-        
+
         <View style={styles.axisLabels}>
           <Text style={styles.axisLabel}>0</Text>
+          <Text style={styles.axisLabel}>{currentStand}</Text>
           <Text style={styles.axisLabel}>{totalStands}</Text>
         </View>
       </View>
 
       <View style={styles.diffIndicator}>
-        <Text style={styles.diffLabel}>Deviation:</Text>
-        <Text
-          style={[
-            styles.diffValue,
-            { color: getStatusColor(lastDiff) },
-          ]}
-        >
-          {lastDiff > 0 ? '+' : ''}{lastDiff.toFixed(2)}
+        <Text style={styles.diffLabel}>Current Gain / Loss:</Text>
+        <Text style={[styles.diffValue, { color: getStatusColor(lastGainLoss) }]}>
+          {lastGainLoss > 0 ? '+' : ''}{lastGainLoss.toFixed(2)}
         </Text>
       </View>
     </View>
@@ -210,44 +193,37 @@ const styles = StyleSheet.create({
     marginHorizontal: 'auto',
     backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.sm,
+    overflow: 'hidden',
   },
   graphArea: {
     flex: 1,
     position: 'relative',
   },
-  origin: {
+  zeroLine: {
     position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: COLORS.textSecondary,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: COLORS.border,
   },
-  expectedPoint: {
+  segment: {
+    position: 'absolute',
+    height: 2,
+    borderRadius: 1,
+    transformOrigin: 'left center',
+  },
+  calculatedPoint: {
     position: 'absolute',
     width: 4,
     height: 4,
     borderRadius: 2,
     backgroundColor: COLORS.textSecondary,
-    opacity: 0.6,
   },
-  actualPoint: {
+  accumulatedPoint: {
     position: 'absolute',
     width: 6,
     height: 6,
     borderRadius: 3,
-  },
-  trendLine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  lineSegment: {
-    position: 'absolute',
-    height: 2,
-    borderRadius: 1,
-    transformOrigin: 'left center',
   },
   axisLabels: {
     flexDirection: 'row',

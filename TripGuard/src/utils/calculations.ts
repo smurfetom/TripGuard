@@ -1,5 +1,12 @@
 import { Section, TripMode, VolumeUnit } from '../types';
 
+export function calculateDisplacementFromSheet(
+  steelDisplacementPerMeter: number,
+  averageStandLength: number
+): number {
+  return (steelDisplacementPerMeter * averageStandLength) / 1000;
+}
+
 export function getSectionDisplacementPerStand(section: Section): number {
   if (section.displacementMode === 'open_end') {
     return section.openEndDisplacementPerStand ?? 0;
@@ -77,6 +84,81 @@ export function calculateExpectedTT(
   }
   
   return Math.max(0, expected);
+}
+
+export function getDisplayStandNumber(
+  startStand: number,
+  progressedStands: number,
+  mode: TripMode
+): number {
+  return mode === 'RIH'
+    ? startStand + progressedStands
+    : startStand - progressedStands;
+}
+
+export function calculateCumulativeVolumeFromSegment(
+  currentProgressedStands: number,
+  startProgressedStands: number,
+  sections: Section[],
+  mode: TripMode,
+  defaultDisplacementPerStand: number
+): number {
+  if (currentProgressedStands <= startProgressedStands) {
+    return 0;
+  }
+
+  if (sections.length === 0) {
+    const traversedStands = currentProgressedStands - startProgressedStands;
+    const baseVolume = traversedStands * defaultDisplacementPerStand;
+    return mode === 'RIH' ? baseVolume : -baseVolume;
+  }
+
+  let cumulativeVolume = 0;
+  let accumulatedStands = 0;
+
+  for (const section of sections) {
+    const sectionStart = accumulatedStands + 1;
+    const sectionEnd = accumulatedStands + section.calculatedStands;
+    const overlapStart = Math.max(startProgressedStands + 1, sectionStart);
+    const overlapEnd = Math.min(currentProgressedStands, sectionEnd);
+    const traversedStands = Math.max(0, overlapEnd - overlapStart + 1);
+
+    if (traversedStands > 0) {
+      const displacement = calculateDisplacementPerStand(section, 'metric');
+      const baseVolume = displacement * traversedStands;
+      cumulativeVolume += mode === 'RIH' ? baseVolume : -baseVolume;
+    }
+
+    accumulatedStands = sectionEnd;
+  }
+
+  return cumulativeVolume;
+}
+
+export function calculateSlugCorrectionVolume(
+  slugVolume: number,
+  slugMudWeight: number,
+  holeMudWeight: number
+): number {
+  if (slugVolume <= 0 || slugMudWeight <= 0 || holeMudWeight <= 0) {
+    return 0;
+  }
+
+  return slugVolume * ((slugMudWeight - holeMudWeight) / holeMudWeight);
+}
+
+export function calculateActualCumulativeVolume(
+  actualTT: number,
+  startActualTT: number
+): number {
+  return actualTT - startActualTT;
+}
+
+export function calculateGainLossVolume(
+  actualCumulativeVolume: number,
+  calculatedCumulativeVolume: number
+): number {
+  return actualCumulativeVolume - calculatedCumulativeVolume;
 }
 
 export function calculateExpectedFromSegment(

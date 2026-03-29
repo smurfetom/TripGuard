@@ -30,9 +30,12 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
     addSlug,
     surfaceReset,
     addComment,
-    currentExpectedTT,
-    currentActualTT,
-    currentDiff,
+    currentObservedVolume,
+    currentTotalVolume,
+    currentDisplayStand,
+    calculatedCumulativeVolume,
+    actualCumulativeVolume,
+    gainLossVolume,
     deviationStatus,
     currentSection,
     clearCurrentSession,
@@ -41,8 +44,12 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const [showLog, setShowLog] = useState(false);
   const [showSlugModal, setShowSlugModal] = useState(false);
   const [showCommentModal, setShowCommentModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [showEndTripModal, setShowEndTripModal] = useState(false);
   const [slugValue, setSlugValue] = useState('');
   const [commentValue, setCommentValue] = useState('');
+  const [resetValue, setResetValue] = useState('');
+  const [resetComment, setResetComment] = useState('');
   if (!session) {
     return (
       <SafeAreaView style={styles.container}>
@@ -59,6 +66,11 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const handleAddStand = () => {
     if (!inputValue) return;
     addStand();
+  };
+
+  const handleSingleStandLog = () => {
+    if (!inputValue) return;
+    addStand(1);
   };
 
   const handleSlug = () => {
@@ -79,6 +91,19 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
     setShowCommentModal(false);
   };
 
+  const handleSurfaceReset = () => {
+    const parsedResetValue = parseFloat(resetValue.replace(/,/g, '.'));
+    if (isNaN(parsedResetValue)) {
+      Alert.alert('Invalid Volume', 'Enter the new observed trip tank volume before resetting.');
+      return;
+    }
+
+    surfaceReset(parsedResetValue, resetComment);
+    setResetValue('');
+    setResetComment('');
+    setShowResetModal(false);
+  };
+
   const handleExportCsv = async () => {
     try {
       await exportTripCsv(session);
@@ -87,30 +112,30 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
     }
   };
 
-  const handleEndTrip = () => {
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('Are you sure you want to end this trip?');
-      if (!confirmed) return;
-      useTripStore.getState().endSession();
-      onNewTrip();
-      return;
-    }
+  const finishTrip = () => {
+    useTripStore.getState().endSession();
+    setShowEndTripModal(false);
+    onNewTrip();
+  };
 
-    Alert.alert(
-      'End Trip',
-      'Are you sure you want to end this trip?',
-      [
+  const handleSaveAndEnd = async () => {
+    try {
+      await exportTripCsv(session);
+      finishTrip();
+    } catch {
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm('CSV export failed. End trip without saving?');
+        if (confirmed) {
+          finishTrip();
+        }
+        return;
+      }
+
+      Alert.alert('Export Failed', 'Unable to export the trip log right now.', [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'End Trip', 
-          style: 'destructive',
-          onPress: () => {
-            useTripStore.getState().endSession();
-            onNewTrip();
-          }
-        },
-      ]
-    );
+        { text: 'End Without Saving', style: 'destructive', onPress: finishTrip },
+      ]);
+    }
   };
 
   const handleNewTrip = () => {
@@ -173,6 +198,11 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           </View>
         </View>
 
+        <View style={styles.tripMetaRow}>
+          <Text style={styles.tripMetaText}>Current Stand: {currentDisplayStand}</Text>
+          <Text style={styles.tripMetaText}>Logging: every {session.loggingInterval}</Text>
+        </View>
+
         <ProgressBar 
           current={session.currentStand} 
           total={session.totalStands}
@@ -181,35 +211,50 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
 
         <View style={styles.valuesRow}>
           <ValueDisplay
-            label="Expected"
-            value={currentExpectedTT}
+            label="Calculated Volume"
+            value={calculatedCumulativeVolume}
             unit={session.volumeUnit}
+            size="large"
             style={styles.valueItem}
           />
           <ValueDisplay
-            label="Actual"
-            value={currentActualTT}
+            label="Accumulated Volume"
+            value={actualCumulativeVolume}
             unit={session.volumeUnit}
             status={deviationStatus}
             size="large"
             style={styles.valueItem}
           />
-          <View style={styles.diffContainer}>
-            <Text style={styles.diffLabel}>DIFF</Text>
-            <Text style={[styles.diffValue, { color: getStatusColor() }]}>
-              {currentDiff > 0 ? '+' : ''}{currentDiff.toFixed(2)}
-            </Text>
-          </View>
+          <ValueDisplay
+            label="Gain / Loss"
+            value={gainLossVolume}
+            unit={session.volumeUnit}
+            status={deviationStatus}
+            size="large"
+            style={styles.valueItem}
+          />
+        </View>
+
+        <View style={styles.volumeGrid}>
+          <ValueDisplay
+            label="Observed Volume"
+            value={currentObservedVolume}
+            unit={session.volumeUnit}
+            style={styles.volumeItem}
+          />
+          <ValueDisplay
+            label="Total Volume"
+            value={currentTotalVolume}
+            unit={session.volumeUnit}
+            style={styles.volumeItem}
+          />
         </View>
 
         {addStandEvents.length > 1 && (
           <TrendSlope
             events={allEvents}
             totalStands={session.totalStands}
-            initialTT={session.initialTT}
             tolerance={session.tolerance}
-            sections={session.sections}
-            mode={session.mode}
             currentStand={session.currentStand}
             style={styles.trend}
           />
@@ -227,13 +272,13 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           <Button
             title="END TRIP"
             variant="danger"
-            onPress={handleEndTrip}
+            onPress={() => setShowEndTripModal(true)}
             style={styles.actionButton}
           />
           <Button
             title="SURFACE RESET"
             variant="secondary"
-            onPress={surfaceReset}
+            onPress={() => setShowResetModal(true)}
             style={styles.actionButton}
           />
           <Button
@@ -270,14 +315,95 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
       </ScrollView>
 
       <View style={styles.inputSection}>
+        {session.loggingInterval > 1 && (
+          <Button
+            title="LOG SINGLE STAND"
+            variant="outline"
+            onPress={handleSingleStandLog}
+            disabled={!inputValue || session.currentStand >= session.totalStands}
+            style={styles.singleStandButton}
+          />
+        )}
         <InputPad
           value={inputValue}
           onChange={setInputValue}
           unit={session.volumeUnit}
           onSubmit={handleAddStand}
+          submitLabel={`LOG ${session.loggingInterval} STAND${session.loggingInterval > 1 ? 'S' : ''}`}
           submitDisabled={session.currentStand >= session.totalStands}
         />
       </View>
+
+      <Modal
+        visible={showEndTripModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEndTripModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>End Trip</Text>
+            <Text style={styles.modalHelper}>
+              Export the trip to CSV before ending, or end the trip without saving.
+            </Text>
+            <View style={styles.modalStackActions}>
+              <Button title="Save and End" onPress={handleSaveAndEnd} />
+              <Button title="End Without Saving" variant="danger" onPress={finishTrip} />
+              <Button title="Cancel" variant="secondary" onPress={() => setShowEndTripModal(false)} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showResetModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResetModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Surface Reset</Text>
+            <Text style={styles.modalHelper}>
+              Enter the new observed trip tank volume. This starts a fresh monitoring segment.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={resetValue}
+              onChangeText={setResetValue}
+              keyboardType="decimal-pad"
+              placeholder={`New actual TT (${session.volumeUnit})`}
+              placeholderTextColor={COLORS.textSecondary}
+              autoFocus
+            />
+            <TextInput
+              style={[styles.modalInput, styles.commentInput]}
+              value={resetComment}
+              onChangeText={setResetComment}
+              placeholder="Optional comment"
+              placeholderTextColor={COLORS.textSecondary}
+              multiline
+            />
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => {
+                  setShowResetModal(false);
+                  setResetValue('');
+                  setResetComment('');
+                }}
+                style={styles.modalButton}
+              />
+              <Button
+                title="Reset"
+                onPress={handleSurfaceReset}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={showSlugModal}
@@ -415,33 +541,37 @@ const styles = StyleSheet.create({
     marginLeft: SPACING.sm,
   },
   progress: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  tripMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  tripMetaText: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
   },
   valuesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
   },
   valueItem: {
     flex: 1,
   },
-  diffContainer: {
-    alignItems: 'center',
-  },
-  diffLabel: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
-    letterSpacing: 1,
-    marginBottom: SPACING.xs,
-  },
-  diffValue: {
-    fontSize: FONT_SIZES.headingLarge,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
   trend: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.md,
+  },
+  volumeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  volumeItem: {
+    width: '48%',
   },
   actions: {
     flexDirection: 'row',
@@ -457,7 +587,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
   },
@@ -473,13 +603,18 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   spacer: {
-    height: 200,
+    height: 120,
   },
   inputSection: {
-    padding: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.sm,
+    paddingBottom: SPACING.sm,
     backgroundColor: COLORS.background,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
+  },
+  singleStandButton: {
+    marginBottom: SPACING.sm,
   },
   modalOverlay: {
     flex: 1,
@@ -500,6 +635,12 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     marginBottom: SPACING.md,
   },
+  modalHelper: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    lineHeight: 20,
+  },
   modalInput: {
     backgroundColor: COLORS.background,
     borderRadius: BORDER_RADIUS.md,
@@ -517,6 +658,9 @@ const styles = StyleSheet.create({
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    gap: SPACING.sm,
+  },
+  modalStackActions: {
     gap: SPACING.sm,
   },
   modalButton: {

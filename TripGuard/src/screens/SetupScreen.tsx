@@ -37,10 +37,16 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
   
   const [mode, setMode] = useState<TripMode>('RIH');
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
-  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('bbl');
+  const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('m3');
   const [tolerance, setTolerance] = useState('0.5');
   const [totalStands, setTotalStands] = useState('88');
+  const [startStand, setStartStand] = useState('0');
+  const [loggingInterval, setLoggingInterval] = useState('5');
   const [initialTT, setInitialTT] = useState('25');
+  const [steelDisplacementPerMeter, setSteelDisplacementPerMeter] = useState('5.03');
+  const [averageStandLength, setAverageStandLength] = useState('28.83');
+  const [slugMudWeight, setSlugMudWeight] = useState('1.5');
+  const [holeMudWeight, setHoleMudWeight] = useState('1.18');
   const [sections, setSections] = useState<Section[]>([]);
   const [showSectionEditor, setShowSectionEditor] = useState(false);
   const [editingSection, setEditingSection] = useState<Section | null>(null);
@@ -86,7 +92,13 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
     setVolumeUnit(cloned.volumeUnit);
     setTolerance(cloned.tolerance.toString());
     setTotalStands(cloned.totalStands.toString());
+    setStartStand(cloned.startStand.toString());
+    setLoggingInterval(cloned.loggingInterval.toString());
     setInitialTT(cloned.initialTT.toString());
+    setSteelDisplacementPerMeter(cloned.steelDisplacementPerMeter.toString());
+    setAverageStandLength(cloned.averageStandLength.toString());
+    setSlugMudWeight(cloned.slugMudWeight?.toString() || '1.5');
+    setHoleMudWeight(cloned.holeMudWeight?.toString() || '1.18');
     setSections(reindexSections(cloned.sections));
     setShowTemplateModal(false);
     setShowSectionEditor(false);
@@ -111,7 +123,13 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
       volumeUnit,
       tolerance: parseNumberInput(tolerance),
       totalStands: parseInt(totalStands, 10) || totalSectionStands,
+      startStand: parseInt(startStand, 10) || 0,
+      loggingInterval: parseInt(loggingInterval, 10) || 5,
       initialTT: parseNumberInput(initialTT),
+      steelDisplacementPerMeter: parseNumberInput(steelDisplacementPerMeter),
+      averageStandLength: parseNumberInput(averageStandLength),
+      slugMudWeight: mode === 'POOH' ? parseNumberInput(slugMudWeight) : undefined,
+      holeMudWeight: mode === 'POOH' ? parseNumberInput(holeMudWeight) : undefined,
       sections: reindexSections(sections).map((section) => ({ ...section, id: createId() })),
     };
 
@@ -228,6 +246,25 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
 
     const totalCalculated = sections.reduce((sum, s) => sum + s.calculatedStands, 0);
     const finalTotalStands = totalCalculated > 0 ? totalCalculated : parseInt(totalStands) || 88;
+    const interval = parseInt(loggingInterval, 10) || 5;
+    const startStandValue = parseInt(startStand, 10) || 0;
+    const steelDisp = parseNumberInput(steelDisplacementPerMeter);
+    const avgStand = parseNumberInput(averageStandLength);
+
+    if (interval !== 1 && interval !== 5) {
+      Alert.alert('Invalid Logging Interval', 'Logging interval must be 1 or 5 stands.');
+      return;
+    }
+
+    if (steelDisp <= 0 || avgStand <= 0) {
+      Alert.alert('Invalid Trip Sheet Inputs', 'Steel displacement per meter and average stand length must be greater than zero.');
+      return;
+    }
+
+    if (mode === 'POOH' && (parseNumberInput(slugMudWeight) <= 0 || parseNumberInput(holeMudWeight) <= 0)) {
+      Alert.alert('Invalid Slug Inputs', 'Hole mud weight and slug mud weight must be greater than zero for POOH.');
+      return;
+    }
     
     startSession({
       mode,
@@ -237,6 +274,12 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
       totalStands: finalTotalStands,
       sections,
       initialTT: parseFloat(initialTT) || 0,
+      startStand: startStandValue,
+      loggingInterval: interval,
+      steelDisplacementPerMeter: steelDisp,
+      averageStandLength: avgStand,
+      slugMudWeight: mode === 'POOH' ? parseNumberInput(slugMudWeight) : undefined,
+      holeMudWeight: mode === 'POOH' ? parseNumberInput(holeMudWeight) : undefined,
     });
     
     onStartTrip();
@@ -324,6 +367,68 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
           </View>
 
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>TRIP SHEET BASIS</Text>
+            <View style={styles.row}>
+              <View style={styles.field}>
+                <Text style={styles.label}>Start Stand</Text>
+                <TextInput
+                  style={styles.input}
+                  value={startStand}
+                  onChangeText={setStartStand}
+                  keyboardType="number-pad"
+                  placeholder={mode === 'POOH' ? '103' : '0'}
+                  placeholderTextColor={COLORS.textSecondary}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Logging Interval</Text>
+                <View style={styles.toggle}>
+                  {(['1', '5'] as const).map((interval) => (
+                    <TouchableOpacity
+                      key={interval}
+                      style={[styles.toggleButton, loggingInterval === interval && styles.toggleActive]}
+                      onPress={() => setLoggingInterval(interval)}
+                    >
+                      <Text style={[styles.toggleText, loggingInterval === interval && styles.toggleTextActive]}>
+                        Every {interval}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={styles.field}>
+                <Text style={styles.label}>Steel Disp. (L/m)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={steelDisplacementPerMeter}
+                  onChangeText={setSteelDisplacementPerMeter}
+                  keyboardType="decimal-pad"
+                  placeholder="5.03"
+                  placeholderTextColor={COLORS.textSecondary}
+                />
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Avg Stand Length (m)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={averageStandLength}
+                  onChangeText={setAverageStandLength}
+                  keyboardType="decimal-pad"
+                  placeholder="28.83"
+                  placeholderTextColor={COLORS.textSecondary}
+                />
+              </View>
+            </View>
+
+            <Text style={styles.helperText}>
+              The trip sheet expected volume is based on steel displacement per meter multiplied by average stand length.
+            </Text>
+          </View>
+
+          <View style={styles.section}>
             <Text style={styles.sectionTitle}>INITIAL TRIP TANK</Text>
             <TextInput
               style={styles.input}
@@ -334,6 +439,36 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
               placeholderTextColor={COLORS.textSecondary}
             />
           </View>
+
+          {mode === 'POOH' && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>SLUG BASIS</Text>
+              <View style={styles.row}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Slug MW (sg)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={slugMudWeight}
+                    onChangeText={setSlugMudWeight}
+                    keyboardType="decimal-pad"
+                    placeholder="1.50"
+                    placeholderTextColor={COLORS.textSecondary}
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Hole MW (sg)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={holeMudWeight}
+                    onChangeText={setHoleMudWeight}
+                    keyboardType="decimal-pad"
+                    placeholder="1.18"
+                    placeholderTextColor={COLORS.textSecondary}
+                  />
+                </View>
+              </View>
+            </View>
+          )}
 
           {sections.length === 0 && (
             <View style={styles.section}>
@@ -506,6 +641,8 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                 <Text style={styles.previewLine}>Stands: {editorCalculatedStands}</Text>
                 <Text style={styles.previewLine}>Active displacement: {editorActiveDisplacement.toFixed(3)} {volumeUnit}/stand</Text>
                 <Text style={styles.previewLine}>Stand capacity: {standCapacity || '--'} {volumeUnit}</Text>
+                <Text style={styles.previewLine}>Trip sheet disp/stand: {(parseNumberInput(steelDisplacementPerMeter) * parseNumberInput(averageStandLength) / 1000).toFixed(3)} {volumeUnit}/stand</Text>
+                <Text style={styles.previewLine}>Logging: every {loggingInterval} stand(s)</Text>
               </View>
                
               <Button

@@ -7,6 +7,7 @@ interface InputPadProps {
   onChange: (value: string) => void;
   unit: string;
   onSubmit: () => void;
+  submitLabel?: string;
   submitDisabled?: boolean;
   style?: ViewStyle;
 }
@@ -16,6 +17,7 @@ export function InputPad({
   onChange,
   unit,
   onSubmit,
+  submitLabel = 'ADD STAND',
   submitDisabled = false,
   style,
 }: InputPadProps) {
@@ -45,6 +47,7 @@ export function InputPad({
   return (
     <View style={[styles.container, style]}>
       <View style={styles.displayContainer}>
+        <Text style={styles.displayLabel}>OBSERVED VOLUME</Text>
         <Text style={styles.display} numberOfLines={1} adjustsFontSizeToFit>
           {value || '0'}
         </Text>
@@ -86,7 +89,7 @@ export function InputPad({
         disabled={!value || submitDisabled}
         activeOpacity={0.7}
       >
-        <Text style={styles.submitText}>ADD STAND</Text>
+        <Text style={styles.submitText}>{submitLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -99,34 +102,37 @@ const styles = StyleSheet.create({
   displayContainer: {
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.xs,
+  },
+  displayLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.xs,
+    letterSpacing: 0.8,
   },
   display: {
-    fontSize: FONT_SIZES.value,
+    fontSize: FONT_SIZES.headingLarge,
     fontWeight: '700',
     color: COLORS.textPrimary,
     fontVariant: ['tabular-nums'],
-    flex: 1,
   },
   unitLabel: {
-    fontSize: FONT_SIZES.heading,
+    fontSize: FONT_SIZES.body,
     color: COLORS.textSecondary,
-    marginLeft: SPACING.md,
+    marginTop: SPACING.xs,
   },
   pad: {
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.xs,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
   },
   key: {
-    width: 80,
-    height: 64,
+    width: 64,
+    height: 50,
     backgroundColor: COLORS.surface,
     borderRadius: BORDER_RADIUS.md,
     margin: SPACING.xs,
@@ -139,14 +145,14 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   keyText: {
-    fontSize: FONT_SIZES.heading,
+    fontSize: FONT_SIZES.body,
     fontWeight: '600',
     color: COLORS.textPrimary,
   },
   submitButton: {
     backgroundColor: COLORS.success,
     borderRadius: BORDER_RADIUS.lg,
-    padding: SPACING.lg,
+    paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -154,9 +160,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.border,
   },
   submitText: {
-    fontSize: FONT_SIZES.heading,
+    fontSize: FONT_SIZES.body,
     fontWeight: '700',
     color: COLORS.white,
-    letterSpacing: 2,
+    letterSpacing: 1,
   },
 });

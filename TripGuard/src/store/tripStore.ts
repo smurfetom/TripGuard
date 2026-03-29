@@ -11,11 +11,16 @@ import {
 } from '../types';
 import {
   calculateExpectedTT,
-  calculateExpectedFromSegment,
+  calculateCumulativeVolumeFromSegment,
   calculateDiff,
   getDeviationStatus,
   getCurrentSection,
   calculateTotalStands,
+  calculateDisplacementFromSheet,
+  calculateSlugCorrectionVolume,
+  calculateActualCumulativeVolume,
+  calculateGainLossVolume,
+  getDisplayStandNumber,
 } from '../utils/calculations';
 import { saveSession, loadSession, clearSession } from '../utils/storage';
 import { createId } from '../utils/id';
@@ -26,19 +31,48 @@ interface TripState {
   currentExpectedTT: number;
   currentActualTT: number;
   currentDiff: number;
+  currentObservedVolume: number;
+  currentTotalVolume: number;
+  currentExpectedTotalVolume: number;
+  currentDisplayStand: number;
+  calculatedCumulativeVolume: number;
+  actualCumulativeVolume: number;
+  gainLossVolume: number;
   deviationStatus: DeviationStatus;
   currentSection: Section | null;
   isLoading: boolean;
   
   startSession: (config: TripConfig) => void;
   setInputValue: (value: string) => void;
-  addStand: () => void;
+  addStand: (step?: number) => void;
   addSlug: (volume: number) => void;
-  surfaceReset: () => void;
+  surfaceReset: (resetActualTT: number, comment?: string) => void;
   addComment: (comment: string) => void;
   endSession: () => void;
   restoreSession: () => Promise<void>;
   clearCurrentSession: () => Promise<void>;
+}
+
+function normalizeSession(session: TripSession): TripSession {
+  const steelDisplacementPerMeter = session.steelDisplacementPerMeter ?? 5.03;
+  const averageStandLength = session.averageStandLength ?? 28.83;
+  const defaultDisplacementPerStand = session.defaultDisplacementPerStand ?? calculateDisplacementFromSheet(
+    steelDisplacementPerMeter,
+    averageStandLength
+  );
+
+  return {
+    ...session,
+    startStand: session.startStand ?? 0,
+    loggingInterval: session.loggingInterval ?? 5,
+    steelDisplacementPerMeter,
+    averageStandLength,
+    defaultDisplacementPerStand,
+    resetBaselineVolume: session.resetBaselineVolume ?? session.initialTT,
+    resetAccumulatedBase: session.resetAccumulatedBase ?? 0,
+    resetCalculatedBase: session.resetCalculatedBase ?? 0,
+    accumulatedSlugCorrectionVolume: session.accumulatedSlugCorrectionVolume ?? 0,
+  };
 }
 
 export const useTripStore = create<TripState>((set, get) => ({
@@ -47,19 +81,23 @@ export const useTripStore = create<TripState>((set, get) => ({
   currentExpectedTT: 0,
   currentActualTT: 0,
   currentDiff: 0,
+  currentObservedVolume: 0,
+  currentTotalVolume: 0,
+  currentExpectedTotalVolume: 0,
+  currentDisplayStand: 0,
+  calculatedCumulativeVolume: 0,
+  actualCumulativeVolume: 0,
+  gainLossVolume: 0,
   deviationStatus: 'OK',
   currentSection: null,
   isLoading: false,
 
   startSession: (config: TripConfig) => {
     const totalStands = calculateTotalStands(config.sections) || config.totalStands;
-    
-    const initialExpected = calculateExpectedTT(
-      0,
-      config.sections,
-      config.mode,
-      config.initialTT
-    );
+    const defaultDisplacementPerStand = config.sections.length > 0
+      ? 0
+      : calculateDisplacementFromSheet(config.steelDisplacementPerMeter, config.averageStandLength);
+    const initialExpected = config.initialTT;
 
     const firstSegment: Segment = {
       id: createId(),
@@ -77,24 +115,41 @@ export const useTripStore = create<TripState>((set, get) => ({
       unitSystem: config.unitSystem,
       volumeUnit: config.volumeUnit,
       tolerance: config.tolerance,
+      startStand: config.startStand,
+      loggingInterval: config.loggingInterval,
+      steelDisplacementPerMeter: config.steelDisplacementPerMeter,
+      averageStandLength: config.averageStandLength,
+      defaultDisplacementPerStand,
       currentStand: 0,
       sections: config.sections,
       segments: [firstSegment],
       activeSegmentId: firstSegment.id,
       isActive: true,
       initialTT: config.initialTT,
-      accumulatedSlugVolume: 0,
+      resetBaselineVolume: config.initialTT,
+      resetAccumulatedBase: 0,
+      resetCalculatedBase: 0,
+      slugMudWeight: config.slugMudWeight,
+      holeMudWeight: config.holeMudWeight,
+      accumulatedSlugCorrectionVolume: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
 
     set({
       session,
-      inputValue: config.initialTT.toString(),
+      inputValue: '',
       currentExpectedTT: initialExpected,
-      currentActualTT: config.initialTT,
-      currentDiff: config.initialTT - initialExpected,
-      deviationStatus: getDeviationStatus(config.initialTT - initialExpected, config.tolerance),
+      currentActualTT: 0,
+      currentDiff: 0,
+      currentObservedVolume: 0,
+      currentTotalVolume: config.initialTT,
+      currentExpectedTotalVolume: config.initialTT,
+      currentDisplayStand: config.startStand,
+      calculatedCumulativeVolume: 0,
+      actualCumulativeVolume: 0,
+      gainLossVolume: 0,
+      deviationStatus: getDeviationStatus(0, config.tolerance),
       currentSection: config.sections.length > 0 ? config.sections[0] : null,
     });
 
@@ -106,40 +161,59 @@ export const useTripStore = create<TripState>((set, get) => ({
     set({ inputValue: sanitized });
   },
 
-  addStand: () => {
+  addStand: (step) => {
     const { session, inputValue } = get();
     if (!session || !session.isActive) return;
+    const standStep = step ?? session.loggingInterval;
     if (session.currentStand >= session.totalStands) return;
 
     const actualTT = parseFloat(inputValue.replace(/,/g, '.'));
     if (isNaN(actualTT)) return;
+    const observedVolume = actualTT;
+    const observedDirection = session.mode === 'RIH' ? 1 : -1;
 
-    const newStand = session.currentStand + 1;
-    const accumulatedSlug = session.accumulatedSlugVolume || 0;
+    const newStand = Math.min(session.currentStand + standStep, session.totalStands);
+    const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
     const activeSegment = session.segments.find(
       (segment) => segment.id === session.activeSegmentId
     );
     if (!activeSegment) return;
-    
-    const newExpected = calculateExpectedFromSegment(
+
+    const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
       newStand,
-      activeSegment.startStand,
+      0,
       session.sections,
       session.mode,
-      activeSegment.startExpected,
-      accumulatedSlug
+      session.defaultDisplacementPerStand
     );
 
-    const diff = calculateDiff(actualTT, newExpected);
+    const actualCumulativeVolume = get().actualCumulativeVolume + (observedVolume * observedDirection);
+    const gainLossVolume = calculateGainLossVolume(actualCumulativeVolume, calculatedCumulativeVolume);
+    const localAccumulatedVolume = actualCumulativeVolume - session.resetAccumulatedBase;
+    const localCalculatedVolume = calculatedCumulativeVolume - session.resetCalculatedBase;
+    const currentTotalVolume = session.resetBaselineVolume + localAccumulatedVolume;
+    const expectedTotalVolume = session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection;
+    const newExpected = expectedTotalVolume;
+
+    const diff = calculateDiff(currentTotalVolume, expectedTotalVolume);
     const status = getDeviationStatus(diff, session.tolerance);
+    const displayStand = getDisplayStandNumber(session.startStand, newStand, session.mode);
 
     const newEvent: Event = {
       id: createId(),
       type: 'ADD_STAND',
-      actualTT,
+      observedVolume,
+      totalVolume: currentTotalVolume,
+      expectedTotalVolume,
+      actualTT: currentTotalVolume,
       expectedTT: newExpected,
       diff,
-      standNumber: newStand,
+      standNumber: displayStand,
+      progressedStands: newStand,
+      calculatedCumulativeVolume,
+      actualCumulativeVolume,
+      gainLossVolume,
+      slugCorrectionVolume: accumulatedSlugCorrection,
       timestamp: Date.now(),
     };
 
@@ -165,8 +239,15 @@ export const useTripStore = create<TripState>((set, get) => ({
     set({
       session: updatedSession,
       currentExpectedTT: newExpected,
-      currentActualTT: actualTT,
+      currentActualTT: observedVolume,
       currentDiff: diff,
+      currentObservedVolume: observedVolume,
+      currentTotalVolume,
+      currentExpectedTotalVolume: expectedTotalVolume,
+      currentDisplayStand: displayStand,
+      calculatedCumulativeVolume,
+      actualCumulativeVolume,
+      gainLossVolume,
       deviationStatus: status,
       currentSection: newSection,
       inputValue: '',
@@ -176,19 +257,32 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
 
   addSlug: (volume: number) => {
-    const { session, currentActualTT, currentExpectedTT } = get();
+    const { session, currentActualTT, currentExpectedTT, currentTotalVolume } = get();
     if (!session || !session.isActive || session.mode !== 'POOH') return;
-
-    const newExpected = currentExpectedTT + volume;
-    const newAccumulatedSlug = (session.accumulatedSlugVolume || 0) + volume;
+    const slugCorrection = calculateSlugCorrectionVolume(
+      volume,
+      session.slugMudWeight || 0,
+      session.holeMudWeight || 0
+    );
+    const newExpected = currentExpectedTT + slugCorrection;
+    const newAccumulatedSlugCorrection = (session.accumulatedSlugCorrectionVolume || 0) + slugCorrection;
+    const currentGainLoss = get().gainLossVolume;
 
     const newEvent: Event = {
       id: createId(),
       type: 'SLUG',
-      actualTT: currentActualTT,
+      observedVolume: volume,
+      totalVolume: currentTotalVolume,
+      expectedTotalVolume: newExpected,
+      actualTT: currentTotalVolume,
       expectedTT: newExpected,
-      diff: currentActualTT - newExpected,
-      standNumber: session.currentStand,
+      diff: currentTotalVolume - newExpected,
+      standNumber: getDisplayStandNumber(session.startStand, session.currentStand, session.mode),
+      progressedStands: session.currentStand,
+      calculatedCumulativeVolume: get().calculatedCumulativeVolume,
+      actualCumulativeVolume: get().actualCumulativeVolume,
+      gainLossVolume: currentGainLoss,
+      slugCorrectionVolume: slugCorrection,
       slugVolume: volume,
       timestamp: Date.now(),
     };
@@ -206,31 +300,43 @@ export const useTripStore = create<TripState>((set, get) => ({
     const updatedSession: TripSession = {
       ...session,
       segments: updatedSegments,
-      accumulatedSlugVolume: newAccumulatedSlug,
+      accumulatedSlugCorrectionVolume: newAccumulatedSlugCorrection,
       updatedAt: Date.now(),
     };
 
     set({
       session: updatedSession,
       currentExpectedTT: newExpected,
-      currentDiff: calculateDiff(currentActualTT, newExpected),
-      deviationStatus: getDeviationStatus(currentActualTT - newExpected, session.tolerance),
+      currentExpectedTotalVolume: newExpected,
+      currentDiff: calculateDiff(currentTotalVolume, newExpected),
+      gainLossVolume: currentGainLoss,
+      deviationStatus: getDeviationStatus(currentTotalVolume - newExpected, session.tolerance),
     });
 
     saveSession(updatedSession);
   },
 
-  surfaceReset: () => {
-    const { session, currentActualTT, currentExpectedTT } = get();
+  surfaceReset: (resetActualTT: number, comment) => {
+    const { session } = get();
     if (!session || !session.isActive) return;
+    if (Number.isNaN(resetActualTT)) return;
+
+    const resetExpectedTT = resetActualTT;
 
     const newEvent: Event = {
       id: createId(),
       type: 'SURFACE_RESET',
-      actualTT: currentActualTT,
-      expectedTT: currentExpectedTT,
-      diff: currentActualTT - currentExpectedTT,
-      standNumber: session.currentStand,
+      totalVolume: resetActualTT,
+      expectedTotalVolume: resetExpectedTT,
+      actualTT: resetActualTT,
+      expectedTT: resetExpectedTT,
+      diff: 0,
+      standNumber: getDisplayStandNumber(session.startStand, session.currentStand, session.mode),
+      progressedStands: session.currentStand,
+      calculatedCumulativeVolume: get().calculatedCumulativeVolume,
+      actualCumulativeVolume: get().actualCumulativeVolume,
+      gainLossVolume: get().gainLossVolume,
+      comment: comment?.trim() || undefined,
       timestamp: Date.now(),
     };
 
@@ -247,8 +353,8 @@ export const useTripStore = create<TripState>((set, get) => ({
     const newSegment: Segment = {
       id: createId(),
       startStand: session.currentStand,
-      startExpected: currentActualTT,
-      startActual: currentActualTT,
+      startExpected: resetExpectedTT,
+      startActual: resetActualTT,
       events: [],
       createdAt: Date.now(),
     };
@@ -257,31 +363,45 @@ export const useTripStore = create<TripState>((set, get) => ({
       ...session,
       segments: [...updatedSegments, newSegment],
       activeSegmentId: newSegment.id,
-      accumulatedSlugVolume: 0,
+      resetBaselineVolume: resetActualTT,
+      resetAccumulatedBase: get().actualCumulativeVolume,
+      resetCalculatedBase: get().calculatedCumulativeVolume,
+      accumulatedSlugCorrectionVolume: 0,
       updatedAt: Date.now(),
     };
 
     set({
       session: updatedSession,
-      currentExpectedTT: currentActualTT,
+      currentExpectedTT: resetExpectedTT,
+      currentActualTT: 0,
       currentDiff: 0,
+      currentObservedVolume: 0,
+      currentTotalVolume: resetActualTT,
+      currentExpectedTotalVolume: resetExpectedTT,
       deviationStatus: 'OK',
+      inputValue: '',
     });
 
     saveSession(updatedSession);
   },
 
   addComment: (comment: string) => {
-    const { session, currentActualTT, currentExpectedTT } = get();
+    const { session, currentActualTT, currentExpectedTT, currentTotalVolume } = get();
     if (!session || !session.isActive) return;
 
     const newEvent: Event = {
       id: createId(),
       type: 'COMMENT',
-      actualTT: currentActualTT,
+      totalVolume: currentTotalVolume,
+      expectedTotalVolume: currentExpectedTT,
+      actualTT: currentTotalVolume,
       expectedTT: currentExpectedTT,
-      diff: currentActualTT - currentExpectedTT,
-      standNumber: session.currentStand,
+      diff: currentTotalVolume - currentExpectedTT,
+      standNumber: getDisplayStandNumber(session.startStand, session.currentStand, session.mode),
+      progressedStands: session.currentStand,
+      calculatedCumulativeVolume: get().calculatedCumulativeVolume,
+      actualCumulativeVolume: get().actualCumulativeVolume,
+      gainLossVolume: get().gainLossVolume,
       comment,
       timestamp: Date.now(),
     };
@@ -322,47 +442,74 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   restoreSession: async () => {
     set({ isLoading: true });
-    
-    const session = await loadSession();
-    
-    if (session && session.isActive) {
-      const activeSegment = session.segments.find(s => s.id === session.activeSegmentId);
-      const allEvents = session.segments.flatMap((segment) => segment.events);
-      const lastEvent = allEvents[allEvents.length - 1];
-      const currentStand = session.currentStand;
-      const actualTT = lastEvent?.actualTT ?? session.initialTT;
-      const accumulatedSlug = session.accumulatedSlugVolume || 0;
-      const expectedTT = activeSegment
-        ? calculateExpectedFromSegment(
-            currentStand,
-            activeSegment.startStand,
-            session.sections,
-            session.mode,
-            activeSegment.startExpected,
-            accumulatedSlug
-          )
-        : calculateExpectedTT(
-            currentStand,
-            session.sections,
-            session.mode,
-            session.initialTT,
-            accumulatedSlug
-          );
-      const diff = calculateDiff(actualTT, expectedTT);
-      const status = getDeviationStatus(diff, session.tolerance);
-      const section = getCurrentSection(currentStand, session.sections);
 
+    try {
+      const loadedSession = await loadSession();
+      const session = loadedSession ? normalizeSession(loadedSession) : null;
+
+      if (session && session.isActive) {
+        const allEvents = session.segments.flatMap((segment) => segment.events);
+        const lastEvent = allEvents[allEvents.length - 1];
+        const currentStand = session.currentStand;
+        const observedVolume = lastEvent?.observedVolume ?? 0;
+        const totalVolume = lastEvent?.totalVolume ?? session.resetBaselineVolume;
+        const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
+        const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
+          currentStand,
+          0,
+          session.sections,
+          session.mode,
+          session.defaultDisplacementPerStand
+        );
+        const actualCumulativeVolume = lastEvent?.actualCumulativeVolume ?? 0;
+        const localCalculatedVolume = calculatedCumulativeVolume - session.resetCalculatedBase;
+        const expectedTT = session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection;
+        const gainLossVolume = calculateGainLossVolume(actualCumulativeVolume, calculatedCumulativeVolume);
+        const diff = calculateDiff(totalVolume, expectedTT);
+        const status = getDeviationStatus(diff, session.tolerance);
+        const section = getCurrentSection(currentStand, session.sections);
+        const displayStand = getDisplayStandNumber(session.startStand, currentStand, session.mode);
+
+        set({
+          session,
+          currentExpectedTT: expectedTT,
+          currentActualTT: observedVolume,
+          currentDiff: diff,
+          currentObservedVolume: observedVolume,
+          currentTotalVolume: totalVolume,
+          currentExpectedTotalVolume: expectedTT,
+          currentDisplayStand: displayStand,
+          calculatedCumulativeVolume,
+          actualCumulativeVolume,
+          gainLossVolume,
+          deviationStatus: status,
+          currentSection: section,
+          inputValue: '',
+        });
+
+        await saveSession(session);
+      }
+    } catch (error) {
+      console.error('Failed to restore TripGuard session:', error);
+      await clearSession();
       set({
-        session,
-        currentExpectedTT: expectedTT,
-        currentActualTT: actualTT,
-        currentDiff: diff,
-        deviationStatus: status,
-        currentSection: section,
+        session: null,
         inputValue: '',
+        currentExpectedTT: 0,
+        currentActualTT: 0,
+        currentDiff: 0,
+        currentObservedVolume: 0,
+        currentTotalVolume: 0,
+        currentExpectedTotalVolume: 0,
+        currentDisplayStand: 0,
+        calculatedCumulativeVolume: 0,
+        actualCumulativeVolume: 0,
+        gainLossVolume: 0,
+        deviationStatus: 'OK',
+        currentSection: null,
       });
     }
-    
+
     set({ isLoading: false });
   },
 
@@ -374,6 +521,13 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentExpectedTT: 0,
       currentActualTT: 0,
       currentDiff: 0,
+      currentObservedVolume: 0,
+      currentTotalVolume: 0,
+      currentExpectedTotalVolume: 0,
+      currentDisplayStand: 0,
+      calculatedCumulativeVolume: 0,
+      actualCumulativeVolume: 0,
+      gainLossVolume: 0,
       deviationStatus: 'OK',
       currentSection: null,
     });

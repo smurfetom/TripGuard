@@ -18,9 +18,12 @@ type MirrorScreenProps = {
 export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
   const {
     session,
-    currentExpectedTT,
-    currentActualTT,
-    currentDiff,
+    currentObservedVolume,
+    currentTotalVolume,
+    currentDisplayStand,
+    calculatedCumulativeVolume,
+    actualCumulativeVolume,
+    gainLossVolume,
     deviationStatus,
     currentSection,
   } = useTripStore();
@@ -28,7 +31,7 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
 
   useEffect(() => {
     setLastUpdate(new Date());
-  }, [currentActualTT]);
+  }, [currentObservedVolume, currentTotalVolume]);
 
   if (!session) {
     return (
@@ -90,6 +93,11 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
           )}
         </View>
 
+        <View style={styles.tripMetaRow}>
+          <Text style={styles.tripMetaText}>Current Stand: {currentDisplayStand}</Text>
+          <Text style={styles.tripMetaText}>Logging: every {session.loggingInterval}</Text>
+        </View>
+
         <ProgressBar 
           current={session.currentStand} 
           total={session.totalStands}
@@ -98,35 +106,50 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
 
         <View style={styles.valuesRow}>
           <ValueDisplay
-            label="Expected"
-            value={currentExpectedTT}
+            label="Calculated Volume"
+            value={calculatedCumulativeVolume}
             unit={session.volumeUnit}
+            size="large"
             style={styles.valueItem}
           />
           <ValueDisplay
-            label="Actual"
-            value={currentActualTT}
+            label="Accumulated Volume"
+            value={actualCumulativeVolume}
             unit={session.volumeUnit}
             status={deviationStatus}
             size="large"
             style={styles.valueItem}
           />
-          <View style={styles.diffContainer}>
-            <Text style={styles.diffLabel}>DIFF</Text>
-            <Text style={[styles.diffValue, { color: getStatusColor() }]}>
-              {currentDiff > 0 ? '+' : ''}{currentDiff.toFixed(2)}
-            </Text>
-          </View>
+          <ValueDisplay
+            label="Gain / Loss"
+            value={gainLossVolume}
+            unit={session.volumeUnit}
+            status={deviationStatus}
+            size="large"
+            style={styles.valueItem}
+          />
+        </View>
+
+        <View style={styles.volumeGrid}>
+          <ValueDisplay
+            label="Observed Volume"
+            value={currentObservedVolume}
+            unit={session.volumeUnit}
+            style={styles.volumeItem}
+          />
+          <ValueDisplay
+            label="Total Volume"
+            value={currentTotalVolume}
+            unit={session.volumeUnit}
+            style={styles.volumeItem}
+          />
         </View>
 
         {addStandEvents.length > 1 && (
           <TrendSlope
             events={allEvents}
             totalStands={session.totalStands}
-            initialTT={session.initialTT}
             tolerance={session.tolerance}
-            sections={session.sections}
-            mode={session.mode}
             currentStand={session.currentStand}
             style={styles.trend}
           />
@@ -257,6 +280,15 @@ const styles = StyleSheet.create({
   progress: {
     marginBottom: SPACING.lg,
   },
+  tripMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: SPACING.md,
+  },
+  tripMetaText: {
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+  },
   valuesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -266,22 +298,17 @@ const styles = StyleSheet.create({
   valueItem: {
     flex: 1,
   },
-  diffContainer: {
-    alignItems: 'center',
-  },
-  diffLabel: {
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
-    letterSpacing: 1,
-    marginBottom: SPACING.xs,
-  },
-  diffValue: {
-    fontSize: FONT_SIZES.headingLarge,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
   trend: {
     marginBottom: SPACING.lg,
+  },
+  volumeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  volumeItem: {
+    width: '48%',
   },
   eventLog: {
     marginBottom: SPACING.lg,
