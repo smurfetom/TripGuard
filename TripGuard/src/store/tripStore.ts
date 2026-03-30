@@ -21,7 +21,10 @@ import {
   calculateActualCumulativeVolume,
   calculateGainLossVolume,
   getDisplayStandNumber,
+  getProgressedStandsFromDisplay,
+  getNextScheduledDisplayStand,
 } from '../utils/calculations';
+import { ResetType } from '../types';
 import { saveSession, loadSession, clearSession } from '../utils/storage';
 import { createId } from '../utils/id';
 
@@ -46,7 +49,7 @@ interface TripState {
   setInputValue: (value: string) => void;
   addStand: (step?: number) => void;
   addSlug: (volume: number) => void;
-  surfaceReset: (resetActualTT: number, comment?: string) => void;
+  surfaceReset: (resetActualTT: number, resetStandDisplay: number, resetType: ResetType, comment?: string) => void;
   addComment: (comment: string) => void;
   endSession: () => void;
   restoreSession: () => Promise<void>;
@@ -162,9 +165,8 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
 
   addStand: (step) => {
-    const { session, inputValue } = get();
+    const { session, inputValue, currentDisplayStand } = get();
     if (!session || !session.isActive) return;
-    const standStep = step ?? session.loggingInterval;
     if (session.currentStand >= session.totalStands) return;
 
     const actualTT = parseFloat(inputValue.replace(/,/g, '.'));
@@ -172,7 +174,25 @@ export const useTripStore = create<TripState>((set, get) => ({
     const observedVolume = actualTT;
     const observedDirection = session.mode === 'RIH' ? 1 : -1;
 
-    const newStand = Math.min(session.currentStand + standStep, session.totalStands);
+    const newStand = (() => {
+      if (step) {
+        return Math.min(session.currentStand + step, session.totalStands);
+      }
+
+      const nextDisplayStand = getNextScheduledDisplayStand(
+        currentDisplayStand,
+        session.startStand,
+        session.loggingInterval,
+        session.mode
+      );
+      const nextProgressedStand = getProgressedStandsFromDisplay(
+        session.startStand,
+        nextDisplayStand,
+        session.mode
+      );
+
+      return Math.min(nextProgressedStand, session.totalStands);
+    })();
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
     const activeSegment = session.segments.find(
       (segment) => segment.id === session.activeSegmentId
@@ -316,10 +336,24 @@ export const useTripStore = create<TripState>((set, get) => ({
     saveSession(updatedSession);
   },
 
-  surfaceReset: (resetActualTT: number, comment) => {
+  surfaceReset: (resetActualTT: number, resetStandDisplay: number, resetType: ResetType, comment) => {
     const { session } = get();
     if (!session || !session.isActive) return;
     if (Number.isNaN(resetActualTT)) return;
+
+    const resetProgressedStand = Math.min(
+      getProgressedStandsFromDisplay(session.startStand, resetStandDisplay, session.mode),
+      session.totalStands
+    );
+    const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
+    const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
+      resetProgressedStand,
+      0,
+      session.sections,
+      session.mode,
+      session.defaultDisplacementPerStand
+    );
+    const localCalculatedVolume = calculatedCumulativeVolume - session.resetCalculatedBase;
 
     const resetExpectedTT = resetActualTT;
 
@@ -330,12 +364,13 @@ export const useTripStore = create<TripState>((set, get) => ({
       expectedTotalVolume: resetExpectedTT,
       actualTT: resetActualTT,
       expectedTT: resetExpectedTT,
-      diff: 0,
-      standNumber: getDisplayStandNumber(session.startStand, session.currentStand, session.mode),
-      progressedStands: session.currentStand,
-      calculatedCumulativeVolume: get().calculatedCumulativeVolume,
+      diff: resetActualTT - (session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection),
+      standNumber: resetStandDisplay,
+      progressedStands: resetProgressedStand,
+      calculatedCumulativeVolume,
       actualCumulativeVolume: get().actualCumulativeVolume,
       gainLossVolume: get().gainLossVolume,
+      resetType,
       comment: comment?.trim() || undefined,
       timestamp: Date.now(),
     };
@@ -352,7 +387,7 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const newSegment: Segment = {
       id: createId(),
-      startStand: session.currentStand,
+      startStand: resetProgressedStand,
       startExpected: resetExpectedTT,
       startActual: resetActualTT,
       events: [],
@@ -361,14 +396,17 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const updatedSession: TripSession = {
       ...session,
+      currentStand: resetProgressedStand,
       segments: [...updatedSegments, newSegment],
       activeSegmentId: newSegment.id,
       resetBaselineVolume: resetActualTT,
       resetAccumulatedBase: get().actualCumulativeVolume,
-      resetCalculatedBase: get().calculatedCumulativeVolume,
+      resetCalculatedBase: calculatedCumulativeVolume,
       accumulatedSlugCorrectionVolume: 0,
       updatedAt: Date.now(),
     };
+
+    const newSection = getCurrentSection(resetProgressedStand, session.sections);
 
     set({
       session: updatedSession,
@@ -378,7 +416,10 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentObservedVolume: 0,
       currentTotalVolume: resetActualTT,
       currentExpectedTotalVolume: resetExpectedTT,
+      currentDisplayStand: resetStandDisplay,
+      calculatedCumulativeVolume,
       deviationStatus: 'OK',
+      currentSection: newSection,
       inputValue: '',
     });
 

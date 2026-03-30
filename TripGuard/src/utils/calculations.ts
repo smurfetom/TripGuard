@@ -96,6 +96,31 @@ export function getDisplayStandNumber(
     : startStand - progressedStands;
 }
 
+export function getProgressedStandsFromDisplay(
+  startStand: number,
+  displayStand: number,
+  mode: TripMode
+): number {
+  return mode === 'RIH'
+    ? Math.max(0, displayStand - startStand)
+    : Math.max(0, startStand - displayStand);
+}
+
+export function getNextScheduledDisplayStand(
+  currentDisplayStand: number,
+  startStand: number,
+  loggingInterval: number,
+  mode: TripMode
+): number {
+  if (loggingInterval <= 1) {
+    return mode === 'RIH' ? currentDisplayStand + 1 : currentDisplayStand - 1;
+  }
+
+  const progressed = getProgressedStandsFromDisplay(startStand, currentDisplayStand, mode);
+  const nextProgressed = Math.ceil((progressed + 1) / loggingInterval) * loggingInterval;
+  return getDisplayStandNumber(startStand, nextProgressed, mode);
+}
+
 export function calculateCumulativeVolumeFromSegment(
   currentProgressedStands: number,
   startProgressedStands: number,
@@ -213,9 +238,9 @@ export function getDeviationStatus(
 ): 'OK' | 'WARNING' | 'ALARM' {
   const absDiff = Math.abs(diff);
   
-  if (absDiff <= tolerance) {
+  if (absDiff <= tolerance * 0.5) {
     return 'OK';
-  } else if (absDiff <= tolerance * 2) {
+  } else if (absDiff <= tolerance) {
     return 'WARNING';
   } else {
     return 'ALARM';

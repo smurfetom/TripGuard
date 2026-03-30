@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface ProgressBarProps {
   current: number;
@@ -9,6 +10,8 @@ interface ProgressBarProps {
 }
 
 export function ProgressBar({ current, total, style }: ProgressBarProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const percentage = total > 0 ? (current / total) * 100 : 0;
 
   return (
@@ -27,7 +30,7 @@ export function ProgressBar({ current, total, style }: ProgressBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
     width: '100%',
   },
@@ -39,29 +42,29 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 1,
   },
   percentage: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.accent,
+    color: colors.accent,
     fontWeight: '600',
   },
   barContainer: {
     height: 8,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.round,
     overflow: 'hidden',
   },
   bar: {
     height: '100%',
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
     borderRadius: BORDER_RADIUS.round,
   },
   stands: {
     fontSize: FONT_SIZES.heading,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginTop: SPACING.sm,
   },

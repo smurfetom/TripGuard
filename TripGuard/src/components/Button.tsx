@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, ActivityIndicator } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface ButtonProps {
   title: string;
@@ -21,34 +22,35 @@ export function Button({
   loading = false,
   style,
 }: ButtonProps) {
+  const { colors } = useAppTheme();
   const getBackgroundColor = () => {
-    if (disabled) return COLORS.border;
+    if (disabled) return colors.border;
     switch (variant) {
       case 'primary':
-        return COLORS.success;
+        return colors.success;
       case 'secondary':
-        return COLORS.surface;
+        return colors.surface;
       case 'danger':
-        return COLORS.danger;
+        return colors.danger;
       case 'outline':
         return 'transparent';
       default:
-        return COLORS.accent;
+        return colors.accent;
     }
   };
 
   const getBorderColor = () => {
     if (variant === 'outline') {
-      return disabled ? COLORS.border : COLORS.accent;
+      return disabled ? colors.border : colors.accent;
     }
     return 'transparent';
   };
 
   const getTextColor = () => {
-    if (disabled) return COLORS.textSecondary;
-    if (variant === 'outline') return COLORS.accent;
-    if (variant === 'secondary') return COLORS.textPrimary;
-    return COLORS.white;
+    if (disabled) return colors.textSecondary;
+    if (variant === 'outline') return colors.accent;
+    if (variant === 'secondary') return colors.textPrimary;
+    return colors.white;
   };
 
   const getPadding = () => {

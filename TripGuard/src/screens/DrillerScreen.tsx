@@ -11,10 +11,12 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
 import { Button, ValueDisplay, ProgressBar, InputPad, TrendSlope, EventItem } from '../components';
 import { useTripStore } from '../store/tripStore';
 import { exportTripCsv } from '../utils/export';
+import { ResetType } from '../types';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 type DrillerScreenProps = {
   onOpenMirror: () => void;
@@ -22,6 +24,8 @@ type DrillerScreenProps = {
 };
 
 export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
+  const { colors, themeMode, setThemeMode } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const {
     session,
     inputValue,
@@ -50,6 +54,8 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const [commentValue, setCommentValue] = useState('');
   const [resetValue, setResetValue] = useState('');
   const [resetComment, setResetComment] = useState('');
+  const [resetStand, setResetStand] = useState('');
+  const [resetType, setResetType] = useState<ResetType>('SURFACE_EVENT');
   if (!session) {
     return (
       <SafeAreaView style={styles.container}>
@@ -93,15 +99,29 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
 
   const handleSurfaceReset = () => {
     const parsedResetValue = parseFloat(resetValue.replace(/,/g, '.'));
+    const parsedResetStand = parseInt(resetStand, 10);
     if (isNaN(parsedResetValue)) {
       Alert.alert('Invalid Volume', 'Enter the new observed trip tank volume before resetting.');
       return;
     }
+    if (isNaN(parsedResetStand)) {
+      Alert.alert('Invalid Stand', 'Enter the current stand number for the reset event.');
+      return;
+    }
 
-    surfaceReset(parsedResetValue, resetComment);
+    surfaceReset(parsedResetValue, parsedResetStand, resetType, resetComment);
     setResetValue('');
     setResetComment('');
+    setResetStand('');
     setShowResetModal(false);
+  };
+
+  const openResetModal = (type: ResetType) => {
+    setResetType(type);
+    setResetStand(String(currentDisplayStand));
+    setResetValue(String(currentTotalVolume));
+    setResetComment('');
+    setShowResetModal(true);
   };
 
   const handleExportCsv = async () => {
@@ -164,9 +184,9 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
 
   const getStatusColor = () => {
     switch (deviationStatus) {
-      case 'OK': return COLORS.success;
-      case 'WARNING': return COLORS.warning;
-      case 'ALARM': return COLORS.danger;
+      case 'OK': return colors.success;
+      case 'WARNING': return colors.warning;
+      case 'ALARM': return colors.danger;
     }
   };
 
@@ -177,7 +197,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           <View style={styles.headerLeft}>
             <View style={[
               styles.modeBadge,
-              { backgroundColor: session.mode === 'RIH' ? COLORS.accent : COLORS.warning }
+              { backgroundColor: session.mode === 'RIH' ? colors.accent : colors.warning }
             ]}>
               <Text style={styles.modeText}>{session.mode}</Text>
             </View>
@@ -191,6 +211,12 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerAction} onPress={handleExportCsv}>
               <Text style={styles.headerActionText}>CSV</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerAction}
+              onPress={() => void setThemeMode(themeMode === 'dark' ? 'light' : 'dark')}
+            >
+              <Text style={styles.headerActionText}>{themeMode === 'dark' ? 'Light' : 'Dark'}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerAction} onPress={handleNewTrip}>
               <Text style={styles.headerActionText}>Setup</Text>
@@ -278,7 +304,13 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           <Button
             title="SURFACE RESET"
             variant="secondary"
-            onPress={() => setShowResetModal(true)}
+            onPress={() => openResetModal('SURFACE_EVENT')}
+            style={styles.actionButton}
+          />
+          <Button
+            title="EMPTY/FILL TT"
+            variant="secondary"
+            onPress={() => openResetModal('EMPTY_FILL_TT')}
             style={styles.actionButton}
           />
           <Button
@@ -306,6 +338,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
                 key={event.id} 
                 event={event} 
                 volumeUnit={session.volumeUnit}
+                tolerance={session.tolerance}
               />
             ))}
           </View>
@@ -365,15 +398,38 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Surface Reset</Text>
             <Text style={styles.modalHelper}>
-              Enter the new observed trip tank volume. This starts a fresh monitoring segment.
+              Enter the exact stand and new tank baseline. The trip gain/loss continues, but total volume is rebaselined from this point.
             </Text>
+            <View style={styles.resetTypeRow}>
+              <TouchableOpacity
+                style={[styles.resetTypeButton, resetType === 'SURFACE_EVENT' && styles.resetTypeButtonActive]}
+                onPress={() => setResetType('SURFACE_EVENT')}
+              >
+                <Text style={[styles.resetTypeText, resetType === 'SURFACE_EVENT' && styles.resetTypeTextActive]}>Surface Event</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resetTypeButton, resetType === 'EMPTY_FILL_TT' && styles.resetTypeButtonActive]}
+                onPress={() => setResetType('EMPTY_FILL_TT')}
+              >
+                <Text style={[styles.resetTypeText, resetType === 'EMPTY_FILL_TT' && styles.resetTypeTextActive]}>Empty/Fill TT</Text>
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.modalInput}
+              value={resetStand}
+              onChangeText={setResetStand}
+              keyboardType="number-pad"
+              placeholder="Current stand"
+              placeholderTextColor={colors.textSecondary}
+              autoFocus
+            />
             <TextInput
               style={styles.modalInput}
               value={resetValue}
               onChangeText={setResetValue}
               keyboardType="decimal-pad"
               placeholder={`New actual TT (${session.volumeUnit})`}
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               autoFocus
             />
             <TextInput
@@ -381,7 +437,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
               value={resetComment}
               onChangeText={setResetComment}
               placeholder="Optional comment"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               multiline
             />
             <View style={styles.modalActions}>
@@ -392,6 +448,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
                   setShowResetModal(false);
                   setResetValue('');
                   setResetComment('');
+                  setResetStand('');
                 }}
                 style={styles.modalButton}
               />
@@ -420,7 +477,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
               onChangeText={setSlugValue}
               keyboardType="decimal-pad"
               placeholder="Enter slug volume"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               autoFocus
             />
             <View style={styles.modalActions}>
@@ -454,7 +511,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
               value={commentValue}
               onChangeText={setCommentValue}
               placeholder="Enter comment"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
               multiline
               autoFocus
             />
@@ -478,10 +535,10 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loading: {
     flex: 1,
@@ -490,7 +547,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   scroll: {
     flex: 1,
@@ -515,15 +572,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
     marginLeft: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   headerActionText: {
     fontSize: FONT_SIZES.caption,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   modeBadge: {
     paddingHorizontal: SPACING.md,
@@ -533,11 +590,11 @@ const styles = StyleSheet.create({
   modeText: {
     fontSize: FONT_SIZES.body,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   sectionName: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginLeft: SPACING.sm,
   },
   progress: {
@@ -550,7 +607,7 @@ const styles = StyleSheet.create({
   },
   tripMetaText: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   valuesRow: {
     flexDirection: 'row',
@@ -589,15 +646,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.sm,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   logToggleText: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   logCount: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   log: {
     marginTop: SPACING.md,
@@ -609,9 +666,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.sm,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   singleStandButton: {
     marginBottom: SPACING.sm,
@@ -623,7 +680,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modal: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     width: '80%',
@@ -632,23 +689,49 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: FONT_SIZES.heading,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.md,
   },
   modalHelper: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
     lineHeight: 20,
   },
+  resetTypeRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  resetTypeButton: {
+    flex: 1,
+    backgroundColor: colors.background,
+    borderRadius: BORDER_RADIUS.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: SPACING.sm,
+    alignItems: 'center',
+  },
+  resetTypeButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  resetTypeText: {
+    fontSize: FONT_SIZES.caption,
+    color: colors.textPrimary,
+    fontWeight: '600',
+  },
+  resetTypeTextActive: {
+    color: colors.white,
+  },
   modalInput: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   commentInput: {

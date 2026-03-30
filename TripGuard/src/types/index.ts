@@ -5,6 +5,7 @@ export type DeviationStatus = 'OK' | 'WARNING' | 'ALARM';
 export type EventType = 'ADD_STAND' | 'SLUG' | 'SURFACE_RESET' | 'COMMENT';
 export type SectionType = 'BHA' | 'DP' | 'HWDP' | 'CUSTOM';
 export type DisplacementMode = 'manual' | 'open_end' | 'closed_end';
+export type ResetType = 'SURFACE_EVENT' | 'EMPTY_FILL_TT';
 
 export interface Section {
   id: string;
@@ -38,6 +39,7 @@ export interface Event {
   gainLossVolume?: number;
   slugCorrectionVolume?: number;
   slugVolume?: number;
+  resetType?: ResetType;
   comment?: string;
   timestamp: number;
 }

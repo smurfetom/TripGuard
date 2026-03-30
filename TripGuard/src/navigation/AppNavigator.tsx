@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SetupScreen, DrillerScreen, MirrorScreen } from '../screens';
-import { COLORS } from '../constants/theme';
 import { useTripStore } from '../store/tripStore';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 type ScreenName = 'Setup' | 'Driller' | 'Mirror';
 
 export function AppNavigator() {
+  const { colors } = useAppTheme();
   const restoreSession = useTripStore((state) => state.restoreSession);
   const session = useTripStore((state) => state.session);
   const isLoading = useTripStore((state) => state.isLoading);
@@ -27,8 +28,8 @@ export function AppNavigator() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={COLORS.accent} size="large" />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }
@@ -60,7 +61,6 @@ export function AppNavigator() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
     alignItems: 'center',
     justifyContent: 'center',
   },

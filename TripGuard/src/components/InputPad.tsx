@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface InputPadProps {
   value: string;
@@ -21,6 +22,8 @@ export function InputPad({
   submitDisabled = false,
   style,
 }: InputPadProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const handleKeyPress = (key: string) => {
     if (key === 'backspace') {
       onChange(value.slice(0, -1));
@@ -95,12 +98,12 @@ export function InputPad({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
     width: '100%',
   },
   displayContainer: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
@@ -108,19 +111,19 @@ const styles = StyleSheet.create({
   },
   displayLabel: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
     letterSpacing: 0.8,
   },
   display: {
     fontSize: FONT_SIZES.headingLarge,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
   },
   unitLabel: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   pad: {
@@ -133,36 +136,36 @@ const styles = StyleSheet.create({
   key: {
     width: 64,
     height: 50,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     margin: SPACING.xs,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   keySpecial: {
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   keyText: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   submitButton: {
-    backgroundColor: COLORS.success,
+    backgroundColor: colors.success,
     borderRadius: BORDER_RADIUS.lg,
     paddingVertical: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   submitText: {
     fontSize: FONT_SIZES.body,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
     letterSpacing: 1,
   },
 });

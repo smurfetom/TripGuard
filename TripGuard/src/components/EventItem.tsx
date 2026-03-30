@@ -1,14 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
-import { Event, DeviationStatus } from '../types';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { Event } from '../types';
+import { getDeviationStatus } from '../utils/calculations';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface EventItemProps {
   event: Event;
   volumeUnit: string;
+  tolerance: number;
 }
 
-export function EventItem({ event, volumeUnit }: EventItemProps) {
+export function EventItem({ event, volumeUnit, tolerance }: EventItemProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const getTypeLabel = () => {
     switch (event.type) {
       case 'ADD_STAND':
@@ -16,7 +21,7 @@ export function EventItem({ event, volumeUnit }: EventItemProps) {
       case 'SLUG':
         return `Slug +${event.slugVolume?.toFixed(2)}`;
       case 'SURFACE_RESET':
-        return 'Surface Reset';
+        return event.resetType === 'EMPTY_FILL_TT' ? 'Empty / Fill TT' : 'Surface Reset';
       case 'COMMENT':
         return 'Comment';
       default:
@@ -25,10 +30,10 @@ export function EventItem({ event, volumeUnit }: EventItemProps) {
   };
 
   const getStatusColor = (diff: number): string => {
-    const absDiff = Math.abs(diff);
-    if (absDiff <= 0.5) return COLORS.success;
-    if (absDiff <= 1) return COLORS.warning;
-    return COLORS.danger;
+    const status = getDeviationStatus(diff, tolerance);
+    if (status === 'OK') return colors.success;
+    if (status === 'WARNING') return colors.warning;
+    return colors.danger;
   };
 
   const formatTime = (timestamp: number) => {
@@ -82,14 +87,14 @@ export function EventItem({ event, volumeUnit }: EventItemProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderLeftWidth: 3,
-    borderLeftColor: COLORS.accent,
+    borderLeftColor: colors.accent,
   },
   header: {
     flexDirection: 'row',
@@ -100,15 +105,15 @@ const styles = StyleSheet.create({
   type: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   time: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   comment: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontStyle: 'italic',
     marginBottom: SPACING.sm,
   },
@@ -121,14 +126,14 @@ const styles = StyleSheet.create({
   },
   valueLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   value: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
   },
 });

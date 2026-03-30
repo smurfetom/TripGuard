@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, FONT_SIZES, SPACING } from '../constants/theme';
+import { FONT_SIZES, SPACING } from '../constants/theme';
 import { DeviationStatus } from '../types';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface ValueDisplayProps {
   label: string;
@@ -20,26 +21,28 @@ export function ValueDisplay({
   size = 'small',
   style,
 }: ValueDisplayProps) {
+  const { colors } = useAppTheme();
   const getStatusColor = () => {
     switch (status) {
       case 'OK':
-        return COLORS.success;
+        return colors.success;
       case 'WARNING':
-        return COLORS.warning;
+        return colors.warning;
       case 'ALARM':
-        return COLORS.danger;
+        return colors.danger;
       default:
-        return COLORS.textPrimary;
+        return colors.textPrimary;
     }
   };
 
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const valueStyle = size === 'large' ? styles.valueLarge : styles.value;
 
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.valueContainer}>
-        <Text style={[valueStyle, { color: status ? getStatusColor() : COLORS.textPrimary }]}>
+        <Text style={[valueStyle, { color: status ? getStatusColor() : colors.textPrimary }]}>
           {value.toFixed(2)}
         </Text>
         <Text style={styles.unit}>{unit}</Text>
@@ -48,13 +51,13 @@ export function ValueDisplay({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
     alignItems: 'center',
   },
   label: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -67,17 +70,17 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.heading,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   valueLarge: {
     fontSize: FONT_SIZES.value,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   unit: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginLeft: SPACING.xs,
   },
 });

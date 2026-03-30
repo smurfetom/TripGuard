@@ -14,6 +14,7 @@ export function buildTripCsv(session: TripSession): string {
   const header = [
     'timestamp',
     'type',
+    'reset_type',
     'stand_number',
     'progressed_stands',
     'actual_tt',
@@ -32,6 +33,7 @@ export function buildTripCsv(session: TripSession): string {
   const lines = events.map((event) => [
     new Date(event.timestamp).toISOString(),
     event.type,
+    event.resetType ?? '',
     event.standNumber,
     event.progressedStands ?? '',
     event.actualTT.toFixed(2),

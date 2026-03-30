@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
 import { Section } from '../types';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface SectionCardProps {
   section: Section;
@@ -14,6 +15,8 @@ interface SectionCardProps {
 }
 
 export function SectionCard({ section, onEdit, onDelete, onMoveUp, onMoveDown, isFirst, isLast }: SectionCardProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const getDisplacementLabel = () => {
     switch (section.displacementMode) {
       case 'open_end':
@@ -72,22 +75,22 @@ export function SectionCard({ section, onEdit, onDelete, onMoveUp, onMoveDown, i
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   icon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: SPACING.md,
@@ -101,16 +104,16 @@ const styles = StyleSheet.create({
   name: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   details: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   meta: {
     fontSize: 12,
-    color: COLORS.accent,
+    color: colors.accent,
     marginTop: 2,
   },
   actions: {
@@ -122,12 +125,12 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: 16,
-    color: COLORS.accent,
+    color: colors.accent,
   },
   deleteText: {
-    color: COLORS.danger,
+    color: colors.danger,
   },
   disabledText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
 });

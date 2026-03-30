@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
 import { Event } from '../types';
+import { getDeviationStatus } from '../utils/calculations';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 interface TrendSlopeProps {
   events: Event[];
@@ -18,6 +20,8 @@ export function TrendSlope({
   currentStand,
   style,
 }: TrendSlopeProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const addStandEvents = events.filter((event) => event.type === 'ADD_STAND');
 
   if (addStandEvents.length === 0) {
@@ -43,10 +47,10 @@ export function TrendSlope({
   const innerHeight = graphHeight - paddingY * 2;
 
   const getStatusColor = (gainLoss: number) => {
-    const absDiff = Math.abs(gainLoss);
-    if (absDiff <= tolerance) return COLORS.success;
-    if (absDiff <= tolerance * 2) return COLORS.warning;
-    return COLORS.danger;
+    const status = getDeviationStatus(gainLoss, tolerance);
+    if (status === 'OK') return colors.success;
+    if (status === 'WARNING') return colors.warning;
+    return colors.danger;
   };
 
   const getX = (progressedStands: number) => paddingX + (progressedStands / Math.max(totalStands, 1)) * innerWidth;
@@ -99,7 +103,7 @@ export function TrendSlope({
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: COLORS.textSecondary }]} />
+          <View style={[styles.legendDot, { backgroundColor: colors.textSecondary }]} />
           <Text style={styles.legendText}>Calculated</Text>
         </View>
         <View style={styles.legendItem}>
@@ -111,8 +115,8 @@ export function TrendSlope({
       <View style={[styles.graph, { width: graphWidth, height: graphHeight }]}>
         <View style={[styles.zeroLine, { top: getY(0) }]} />
         <View style={styles.graphArea}>
-          {drawSegments(calculatedPoints, COLORS.textSecondary)}
-          {drawSegments(accumulatedPoints, COLORS.accent, true)}
+          {drawSegments(calculatedPoints, colors.textSecondary)}
+          {drawSegments(accumulatedPoints, colors.accent, true)}
 
           {calculatedPoints.map((point, index) => (
             <View key={`calc-${index}`} style={[styles.calculatedPoint, { left: point.x - 2, top: point.y - 2 }]} />
@@ -150,21 +154,21 @@ export function TrendSlope({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
   },
   title: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
   emptyText: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     padding: SPACING.lg,
   },
@@ -186,12 +190,12 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   graph: {
     position: 'relative',
     marginHorizontal: 'auto',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.sm,
     overflow: 'hidden',
   },
@@ -204,7 +208,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: colors.border,
   },
   segment: {
     position: 'absolute',
@@ -217,7 +221,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.textSecondary,
+    backgroundColor: colors.textSecondary,
   },
   accumulatedPoint: {
     position: 'absolute',
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
   },
   axisLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   diffIndicator: {
     flexDirection: 'row',
@@ -243,7 +247,7 @@ const styles = StyleSheet.create({
   },
   diffLabel: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginRight: SPACING.sm,
   },
   diffValue: {

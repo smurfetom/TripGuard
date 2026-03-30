@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  COLORS,
   SPACING,
   FONT_SIZES,
   BORDER_RADIUS,
@@ -27,12 +26,15 @@ import { TripMode, Section, SectionType, VolumeUnit, UnitSystem, DisplacementMod
 import { createId } from '../utils/id';
 import { loadTemplates, saveTemplates } from '../utils/storage';
 import { BUILT_IN_TEMPLATES, cloneTemplate } from '../utils/templates';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 type SetupScreenProps = {
   onStartTrip: () => void;
 };
 
 export function SetupScreen({ onStartTrip }: SetupScreenProps) {
+  const { colors, themeMode, setThemeMode } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const startSession = useTripStore((state) => state.startSession);
   
   const [mode, setMode] = useState<TripMode>('RIH');
@@ -302,6 +304,24 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
           <Text style={styles.title}>Trip Setup</Text>
 
           <View style={styles.section}>
+            <Text style={styles.sectionTitle}>THEME</Text>
+            <View style={styles.compactToggle}>
+              <TouchableOpacity
+                style={[styles.compactToggleButton, themeMode === 'dark' && styles.toggleActive]}
+                onPress={() => setThemeMode('dark')}
+              >
+                <Text style={[styles.compactToggleText, themeMode === 'dark' && styles.toggleTextActive]}>Dark</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.compactToggleButton, themeMode === 'light' && styles.toggleActive]}
+                onPress={() => setThemeMode('light')}
+              >
+                <Text style={[styles.compactToggleText, themeMode === 'light' && styles.toggleTextActive]}>Light</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>TEMPLATES</Text>
             </View>
@@ -313,20 +333,20 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>MODE</Text>
-            <View style={styles.toggle}>
+            <View style={styles.compactToggle}>
               <TouchableOpacity
-                style={[styles.toggleButton, mode === 'RIH' && styles.toggleActive]}
+                style={[styles.compactToggleButton, mode === 'RIH' && styles.toggleActive]}
                 onPress={() => setMode('RIH')}
               >
-                <Text style={[styles.toggleText, mode === 'RIH' && styles.toggleTextActive]}>
+                <Text style={[styles.compactToggleText, mode === 'RIH' && styles.toggleTextActive]}>
                   RIH
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.toggleButton, mode === 'POOH' && styles.toggleActive]}
+                style={[styles.compactToggleButton, mode === 'POOH' && styles.toggleActive]}
                 onPress={() => setMode('POOH')}
               >
-                <Text style={[styles.toggleText, mode === 'POOH' && styles.toggleTextActive]}>
+                <Text style={[styles.compactToggleText, mode === 'POOH' && styles.toggleTextActive]}>
                   POOH
                 </Text>
               </TouchableOpacity>
@@ -360,7 +380,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                   onChangeText={setTolerance}
                   keyboardType="decimal-pad"
                   placeholder="0.5"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
             </View>
@@ -377,19 +397,19 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                   onChangeText={setStartStand}
                   keyboardType="number-pad"
                   placeholder={mode === 'POOH' ? '103' : '0'}
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Logging Interval</Text>
-                <View style={styles.toggle}>
+                <View style={styles.compactToggle}>
                   {(['1', '5'] as const).map((interval) => (
                     <TouchableOpacity
                       key={interval}
-                      style={[styles.toggleButton, loggingInterval === interval && styles.toggleActive]}
+                      style={[styles.compactToggleButton, loggingInterval === interval && styles.toggleActive]}
                       onPress={() => setLoggingInterval(interval)}
                     >
-                      <Text style={[styles.toggleText, loggingInterval === interval && styles.toggleTextActive]}>
+                      <Text style={[styles.compactToggleText, loggingInterval === interval && styles.toggleTextActive]}>
                         Every {interval}
                       </Text>
                     </TouchableOpacity>
@@ -407,7 +427,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                   onChangeText={setSteelDisplacementPerMeter}
                   keyboardType="decimal-pad"
                   placeholder="5.03"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
               <View style={styles.field}>
@@ -418,7 +438,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                   onChangeText={setAverageStandLength}
                   keyboardType="decimal-pad"
                   placeholder="28.83"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
             </View>
@@ -436,7 +456,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
               onChangeText={setInitialTT}
               keyboardType="decimal-pad"
               placeholder="25.00"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
             />
           </View>
 
@@ -452,7 +472,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                     onChangeText={setSlugMudWeight}
                     keyboardType="decimal-pad"
                     placeholder="1.50"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
                 <View style={styles.field}>
@@ -463,7 +483,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                     onChangeText={setHoleMudWeight}
                     keyboardType="decimal-pad"
                     placeholder="1.18"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
               </View>
@@ -479,7 +499,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                 onChangeText={setTotalStands}
                 keyboardType="number-pad"
                 placeholder="88"
-                placeholderTextColor={COLORS.textSecondary}
+                placeholderTextColor={colors.textSecondary}
               />
             </View>
           )}
@@ -585,7 +605,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                     onChangeText={setDisplacementPerStand}
                     keyboardType="decimal-pad"
                     placeholder="0.015"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
               )}
@@ -599,7 +619,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                     onChangeText={setOpenEndDisplacementPerStand}
                     keyboardType="decimal-pad"
                     placeholder="0.015"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
               )}
@@ -613,7 +633,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                     onChangeText={setClosedEndDisplacementPerStand}
                     keyboardType="decimal-pad"
                     placeholder="0.015"
-                    placeholderTextColor={COLORS.textSecondary}
+                    placeholderTextColor={colors.textSecondary}
                   />
                 </View>
               )}
@@ -626,7 +646,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
                   onChangeText={setStandCapacity}
                   keyboardType="decimal-pad"
                   placeholder="Informational only"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={colors.textSecondary}
                 />
               </View>
 
@@ -674,7 +694,7 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
               value={templateName}
               onChangeText={setTemplateName}
               placeholder="Template name"
-              placeholderTextColor={COLORS.textSecondary}
+              placeholderTextColor={colors.textSecondary}
             />
             <View style={styles.templateActions}>
               <Button title="Save Current" onPress={saveCurrentTemplate} style={styles.templateButton} />
@@ -698,10 +718,10 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -715,7 +735,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FONT_SIZES.headingLarge,
     fontWeight: '700',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.lg,
   },
   section: {
@@ -729,13 +749,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
   sectionCount: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.accent,
+    color: colors.accent,
   },
   templateActions: {
     flexDirection: 'row',
@@ -746,9 +766,17 @@ const styles = StyleSheet.create({
   },
   toggle: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: 4,
+  },
+  compactToggle: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: BORDER_RADIUS.md,
+    padding: 4,
+    flexWrap: 'wrap',
   },
   toggleButton: {
     flex: 1,
@@ -756,16 +784,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: BORDER_RADIUS.sm,
   },
+  compactToggleButton: {
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.sm,
+    marginRight: SPACING.xs,
+  },
   toggleActive: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: colors.accent,
   },
   toggleText: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
+  },
+  compactToggleText: {
+    fontSize: FONT_SIZES.caption,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   toggleTextActive: {
-    color: COLORS.white,
+    color: colors.white,
   },
   smallToggle: {
     paddingVertical: SPACING.sm,
@@ -775,7 +815,7 @@ const styles = StyleSheet.create({
   },
   smallToggleText: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   optionGrid: {
     flexDirection: 'row',
@@ -783,17 +823,17 @@ const styles = StyleSheet.create({
     marginHorizontal: -SPACING.xs,
   },
   optionButton: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     margin: SPACING.xs,
   },
   optionButtonText: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: '600',
   },
   row: {
@@ -806,45 +846,45 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.xs,
   },
   input: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
     fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   helperText: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: SPACING.md,
   },
   previewCard: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   previewTitle: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.accent,
+    color: colors.accent,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
   previewLine: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.xs,
   },
   editor: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     marginBottom: SPACING.lg,
@@ -852,7 +892,7 @@ const styles = StyleSheet.create({
   editorTitle: {
     fontSize: FONT_SIZES.heading,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.md,
   },
   spacer: {
@@ -860,9 +900,9 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: SPACING.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   modalOverlay: {
     flex: 1,
@@ -871,14 +911,14 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
   },
   modalCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     maxHeight: '80%',
   },
   modalTitle: {
     fontSize: FONT_SIZES.heading,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '600',
     marginBottom: SPACING.md,
   },
@@ -886,10 +926,10 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
   },
   templateRow: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: BORDER_RADIUS.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     flexDirection: 'row',
@@ -898,16 +938,16 @@ const styles = StyleSheet.create({
   },
   templateName: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   templateMeta: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   templateType: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.accent,
+    color: colors.accent,
   },
 });

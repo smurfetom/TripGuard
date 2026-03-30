@@ -6,9 +6,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
+import { SPACING, FONT_SIZES, BORDER_RADIUS } from '../constants/theme';
 import { ValueDisplay, ProgressBar, TrendSlope, EventItem, Button } from '../components';
 import { useTripStore } from '../store/tripStore';
+import { useAppTheme } from '../theme/ThemeProvider';
 
 type MirrorScreenProps = {
   onClose: () => void;
@@ -16,6 +17,8 @@ type MirrorScreenProps = {
 };
 
 export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
+  const { colors } = useAppTheme();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const {
     session,
     currentObservedVolume,
@@ -48,9 +51,9 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
 
   const getStatusColor = () => {
     switch (deviationStatus) {
-      case 'OK': return COLORS.success;
-      case 'WARNING': return COLORS.warning;
-      case 'ALARM': return COLORS.danger;
+      case 'OK': return colors.success;
+      case 'WARNING': return colors.warning;
+      case 'ALARM': return colors.danger;
     }
   };
 
@@ -84,7 +87,7 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
         <View style={styles.infoBar}>
           <View style={[
             styles.modeBadge,
-            { backgroundColor: session.mode === 'RIH' ? COLORS.accent : COLORS.warning }
+            { backgroundColor: session.mode === 'RIH' ? colors.accent : colors.warning }
           ]}>
             <Text style={styles.modeText}>{session.mode}</Text>
           </View>
@@ -165,6 +168,7 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
                 key={event.id} 
                 event={event} 
                 volumeUnit={session.volumeUnit}
+                tolerance={session.tolerance}
               />
             ))
           )}
@@ -189,10 +193,10 @@ export function MirrorScreen({ onClose, onGoToSetup }: MirrorScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   loading: {
     flex: 1,
@@ -201,12 +205,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   header: {
     padding: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
     alignItems: 'center',
   },
   closeButton: {
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
   liveBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.danger,
+    backgroundColor: colors.danger,
     paddingHorizontal: SPACING.sm,
     paddingVertical: SPACING.xs,
     borderRadius: BORDER_RADIUS.round,
@@ -231,23 +235,23 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.white,
+    backgroundColor: colors.white,
     marginRight: SPACING.xs,
   },
   liveText: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
     letterSpacing: 1,
   },
   title: {
     fontSize: FONT_SIZES.heading,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   updateTime: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: SPACING.xs,
   },
   scroll: {
@@ -270,11 +274,11 @@ const styles = StyleSheet.create({
   modeText: {
     fontSize: FONT_SIZES.body,
     fontWeight: '700',
-    color: COLORS.white,
+    color: colors.white,
   },
   sectionName: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginLeft: SPACING.sm,
   },
   progress: {
@@ -287,7 +291,7 @@ const styles = StyleSheet.create({
   },
   tripMetaText: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   valuesRow: {
     flexDirection: 'row',
@@ -315,20 +319,20 @@ const styles = StyleSheet.create({
   },
   logTitle: {
     fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
   emptyLog: {
     fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     padding: SPACING.lg,
   },
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: SPACING.md,
   },
@@ -337,14 +341,14 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   statusValue: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.xs,
   },
 });

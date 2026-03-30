@@ -1,4 +1,18 @@
-export const COLORS = {
+export type ThemeColors = {
+  background: string;
+  surface: string;
+  border: string;
+  textPrimary: string;
+  textSecondary: string;
+  accent: string;
+  success: string;
+  warning: string;
+  danger: string;
+  white: string;
+  black: string;
+};
+
+export const DARK_COLORS: ThemeColors = {
   background: '#0D1117',
   surface: '#161B22',
   border: '#30363D',
@@ -11,6 +25,22 @@ export const COLORS = {
   white: '#FFFFFF',
   black: '#000000',
 };
+
+export const LIGHT_COLORS: ThemeColors = {
+  background: '#EEF2F6',
+  surface: '#FFFFFF',
+  border: '#C8D1DB',
+  textPrimary: '#10161D',
+  textSecondary: '#556270',
+  accent: '#0F62FE',
+  success: '#1F8A46',
+  warning: '#B97700',
+  danger: '#C62828',
+  white: '#FFFFFF',
+  black: '#000000',
+};
+
+export const COLORS = DARK_COLORS;
 
 export const SPACING = {
   xs: 4,
