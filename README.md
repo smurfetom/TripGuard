@@ -14,6 +14,9 @@ Quick Start
 - Android: npm run android
 - iOS: npm run ios
 
+Quick helper
+- Start from the repo root: bash scripts/start_dev.sh
+
 Project structure (high level)
 - App.tsx: main app component
 - src/: application source code (screens, components, store, etc.)
