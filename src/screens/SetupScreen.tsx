@@ -30,9 +30,10 @@ import { useAppTheme } from '../theme/ThemeProvider';
 
 type SetupScreenProps = {
   onStartTrip: () => void;
+  onGoToStatus?: () => void;
 };
 
-export function SetupScreen({ onStartTrip }: SetupScreenProps) {
+export function SetupScreen({ onStartTrip, onGoToStatus }: SetupScreenProps) {
   const { colors, themeMode, setThemeMode } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const startSession = useTripStore((state) => state.startSession);
@@ -302,6 +303,11 @@ export function SetupScreen({ onStartTrip }: SetupScreenProps) {
       >
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
           <Text style={styles.title}>Trip Setup</Text>
+          {onGoToStatus && (
+            <View style={{ alignItems: 'flex-end', marginBottom: SPACING.md }}>
+              <Button title="Status" onPress={onGoToStatus} />
+            </View>
+          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>THEME</Text>
