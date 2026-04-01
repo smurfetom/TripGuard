@@ -59,7 +59,7 @@ export function AppNavigator() {
     return <StatusScreen onClose={() => setScreen('Setup')} />;
   }
 
-  return <SetupScreen onStartTrip={() => setScreen('Driller')} />;
+  return <SetupScreen onStartTrip={() => setScreen('Driller')} onGoToStatus={() => setScreen('Status')} />;
 }
 
 const styles = StyleSheet.create({
