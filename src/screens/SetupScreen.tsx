@@ -31,9 +31,10 @@ import { useAppTheme } from '../theme/ThemeProvider';
 type SetupScreenProps = {
   onStartTrip: () => void;
   onGoToStatus?: () => void;
+  onGoToDiagnostics?: () => void;
 };
 
-export function SetupScreen({ onStartTrip, onGoToStatus }: SetupScreenProps) {
+export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: SetupScreenProps) {
   const { colors, themeMode, setThemeMode } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const startSession = useTripStore((state) => state.startSession);
@@ -306,6 +307,11 @@ export function SetupScreen({ onStartTrip, onGoToStatus }: SetupScreenProps) {
           {onGoToStatus && (
             <View style={{ alignItems: 'flex-end', marginBottom: SPACING.md }}>
               <Button title="Status" onPress={onGoToStatus} />
+            </View>
+          )}
+          {onGoToDiagnostics && (
+            <View style={{ alignItems: 'flex-end', marginBottom: SPACING.md }}>
+              <Button title="Diagnostics" onPress={onGoToDiagnostics} />
             </View>
           )}
 
