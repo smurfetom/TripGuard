@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen, DiagnosticsScreen, LicenseLoginScreen } from '../screens';
-import { loadCurrentLicenseIdFromStorage, getCurrentLicenseId, setCurrentLicenseId } from '../utils/license';
+import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen, DiagnosticsScreen } from '../screens';
 import { ENABLE_LICENSE_GATE } from '../config';
 import { useTripStore } from '../store/tripStore';
 import { useAppTheme } from '../theme/ThemeProvider';
@@ -10,8 +9,6 @@ type ScreenName = 'Setup' | 'Driller' | 'Mirror' | 'Status' | 'Diagnostics';
 
 export function AppNavigator() {
   const { colors } = useAppTheme();
-  const [licenseReady, setLicenseReady] = React.useState(false);
-  const [licenseId, setLicenseId] = React.useState<string>(getCurrentLicenseId());
   const restoreSession = useTripStore((state) => state.restoreSession);
   const session = useTripStore((state) => state.session);
   const isLoading = useTripStore((state) => state.isLoading);
@@ -22,21 +19,7 @@ export function AppNavigator() {
     restoreSession();
   }, [restoreSession]);
 
-  // Load persisted license on startup
-  React.useEffect(() => {
-    (async () => {
-      try {
-        const loadedId = await loadCurrentLicenseIdFromStorage();
-        if (loadedId) {
-          setCurrentLicenseId(loadedId);
-          setLicenseId(loadedId);
-        }
-      } catch {
-        // ignore
-      }
-      setLicenseReady(true);
-    })();
-  }, []);
+  // License gating is currently disabled; no gating logic here
 
   React.useEffect(() => {
     if (session?.isActive) {
@@ -54,11 +37,7 @@ export function AppNavigator() {
     );
   }
 
-  // Optionally gate with login if enabled
-  const showGate = ENABLE_LICENSE_GATE && (!licenseReady || licenseId === 'default');
-  if (showGate) {
-    return <LicenseLoginScreen onSuccess={(id) => { setCurrentLicenseId(id); setLicenseId(id); setScreen('Setup'); }} />
-  }
+  // License gating is disabled by default; no login gate path here
 
   if (screen === 'Mirror') {
     return (
