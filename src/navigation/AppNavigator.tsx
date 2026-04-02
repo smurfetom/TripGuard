@@ -2,6 +2,7 @@ import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen, DiagnosticsScreen, LicenseLoginScreen } from '../screens';
 import { loadCurrentLicenseIdFromStorage, getCurrentLicenseId, setCurrentLicenseId } from '../utils/license';
+import { ENABLE_LICENSE_GATE } from '../config';
 import { useTripStore } from '../store/tripStore';
 import { useAppTheme } from '../theme/ThemeProvider';
 
@@ -53,8 +54,9 @@ export function AppNavigator() {
     );
   }
 
-  // Show a login gate if license not yet selected
-  if (!licenseReady || licenseId === 'default') {
+  // Optionally gate with login if enabled
+  const showGate = ENABLE_LICENSE_GATE && (!licenseReady || licenseId === 'default');
+  if (showGate) {
     return <LicenseLoginScreen onSuccess={(id) => { setCurrentLicenseId(id); setLicenseId(id); setScreen('Setup'); }} />
   }
 
