@@ -1,10 +1,10 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen } from '../screens';
+import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen, DiagnosticsScreen } from '../screens';
 import { useTripStore } from '../store/tripStore';
 import { useAppTheme } from '../theme/ThemeProvider';
 
-type ScreenName = 'Setup' | 'Driller' | 'Mirror' | 'Status';
+type ScreenName = 'Setup' | 'Driller' | 'Mirror' | 'Status' | 'Diagnostics';
 
 export function AppNavigator() {
   const { colors } = useAppTheme();
@@ -59,7 +59,11 @@ export function AppNavigator() {
     return <StatusScreen onClose={() => setScreen('Setup')} />;
   }
 
-  return <SetupScreen onStartTrip={() => setScreen('Driller')} onGoToStatus={() => setScreen('Status')} />;
+  if (screen === 'Diagnostics') {
+    return <DiagnosticsScreen onClose={() => setScreen('Setup')} />;
+  }
+
+  return <SetupScreen onStartTrip={() => setScreen('Driller')} onGoToStatus={() => setScreen('Status')} onGoToDiagnostics={() => setScreen('Diagnostics')} />;
 }
 
 const styles = StyleSheet.create({
