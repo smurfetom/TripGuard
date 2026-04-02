@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getCurrentLicenseId } from './license';
 import { SetupTemplate, TripSession } from '../types';
 
 const STORAGE_KEYS = {
@@ -7,9 +8,14 @@ const STORAGE_KEYS = {
   TEMPLATES: '@tripguard_templates',
 };
 
+function keyWithLicense(baseKey: string): string {
+  const id = getCurrentLicenseId();
+  return id ? `${baseKey}:${id}` : baseKey;
+}
+
 export async function saveSession(session: TripSession): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(session));
+    await AsyncStorage.setItem(keyWithLicense(STORAGE_KEYS.SESSION), JSON.stringify(session));
   } catch (error) {
     console.error('Failed to save session:', error);
   }
@@ -17,7 +23,7 @@ export async function saveSession(session: TripSession): Promise<void> {
 
 export async function loadSession(): Promise<TripSession | null> {
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.SESSION);
+    const data = await AsyncStorage.getItem(keyWithLicense(STORAGE_KEYS.SESSION));
     if (data) {
       return JSON.parse(data) as TripSession;
     }
@@ -30,7 +36,7 @@ export async function loadSession(): Promise<TripSession | null> {
 
 export async function clearSession(): Promise<void> {
   try {
-    await AsyncStorage.removeItem(STORAGE_KEYS.SESSION);
+    await AsyncStorage.removeItem(keyWithLicense(STORAGE_KEYS.SESSION));
   } catch (error) {
     console.error('Failed to clear session:', error);
   }
@@ -38,7 +44,7 @@ export async function clearSession(): Promise<void> {
 
 export async function saveSettings(settings: Record<string, unknown>): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    await AsyncStorage.setItem(keyWithLicense(STORAGE_KEYS.SETTINGS), JSON.stringify(settings));
   } catch (error) {
     console.error('Failed to save settings:', error);
   }
@@ -46,7 +52,7 @@ export async function saveSettings(settings: Record<string, unknown>): Promise<v
 
 export async function loadSettings(): Promise<Record<string, unknown> | null> {
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
+    const data = await AsyncStorage.getItem(keyWithLicense(STORAGE_KEYS.SETTINGS));
     if (data) {
       return JSON.parse(data);
     }
@@ -59,7 +65,7 @@ export async function loadSettings(): Promise<Record<string, unknown> | null> {
 
 export async function saveTemplates(templates: SetupTemplate[]): Promise<void> {
   try {
-    await AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(templates));
+    await AsyncStorage.setItem(keyWithLicense(STORAGE_KEYS.TEMPLATES), JSON.stringify(templates));
   } catch (error) {
     console.error('Failed to save templates:', error);
   }
@@ -67,7 +73,7 @@ export async function saveTemplates(templates: SetupTemplate[]): Promise<void> {
 
 export async function loadTemplates(): Promise<SetupTemplate[]> {
   try {
-    const data = await AsyncStorage.getItem(STORAGE_KEYS.TEMPLATES);
+    const data = await AsyncStorage.getItem(keyWithLicense(STORAGE_KEYS.TEMPLATES));
     if (data) {
       return JSON.parse(data) as SetupTemplate[];
     }
