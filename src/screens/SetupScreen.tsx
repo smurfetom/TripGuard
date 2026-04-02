@@ -787,7 +787,8 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     alignSelf: 'flex-start',
     backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
-    padding: 4,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.sm,
     flexWrap: 'wrap',
   },
   toggleButton: {
@@ -797,8 +798,8 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     borderRadius: BORDER_RADIUS.sm,
   },
   compactToggleButton: {
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
     alignItems: 'center',
     borderRadius: BORDER_RADIUS.sm,
     marginRight: SPACING.xs,
