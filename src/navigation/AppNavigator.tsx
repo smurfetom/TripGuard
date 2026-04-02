@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen, DiagnosticsScreen } from '../screens';
+import { SetupScreen, DrillerScreen, MirrorScreen, StatusScreen, DiagnosticsScreen, LicenseLoginScreen } from '../screens';
+import { getCurrentLicenseId } from '../utils/license';
 import { useTripStore } from '../store/tripStore';
 import { useAppTheme } from '../theme/ThemeProvider';
 
@@ -8,6 +9,7 @@ type ScreenName = 'Setup' | 'Driller' | 'Mirror' | 'Status' | 'Diagnostics';
 
 export function AppNavigator() {
   const { colors } = useAppTheme();
+  const licenseId = getCurrentLicenseId();
   const restoreSession = useTripStore((state) => state.restoreSession);
   const session = useTripStore((state) => state.session);
   const isLoading = useTripStore((state) => state.isLoading);
@@ -32,6 +34,11 @@ export function AppNavigator() {
         <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
+  }
+
+  // On first launch or when no license selected, prompt for login
+  if (licenseId === 'default') {
+    return <LicenseLoginScreen onSuccess={(id) => { /* after login, license will be set by LoginScreen */ }} />
   }
 
   if (screen === 'Mirror') {
