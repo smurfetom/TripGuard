@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentLicenseId } from './license';
 import { SetupTemplate, TripSession } from '../types';
-import { getCurrentLicenseId } from './license';
 
 const STORAGE_KEYS = {
   SESSION: '@tripguard_session',
