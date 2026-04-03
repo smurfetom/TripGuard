@@ -357,14 +357,16 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             style={styles.singleStandButton}
           />
         )}
-        <InputPad
-          value={inputValue}
-          onChange={setInputValue}
-          unit={session.volumeUnit}
-          onSubmit={handleAddStand}
-          submitLabel={`LOG ${session.loggingInterval} STAND${session.loggingInterval > 1 ? 'S' : ''}`}
-          submitDisabled={session.currentStand >= session.totalStands}
-        />
+        <View style={{ width: '60%', alignSelf: 'center' }}>
+          <InputPad
+            value={inputValue}
+            onChange={setInputValue}
+            unit={session.volumeUnit}
+            onSubmit={handleAddStand}
+            submitLabel={`LOG ${session.loggingInterval} STAND${session.loggingInterval > 1 ? 'S' : ''}`}
+            submitDisabled={session.currentStand >= session.totalStands}
+          />
+        </View>
       </View>
 
       <Modal
