@@ -144,13 +144,7 @@ export function TrendSlope({
         </View>
       </View>
 
-      <View style={styles.diffIndicator}>
-        <Text style={styles.diffLabel}>Current Gain / Loss:</Text>
-        <Text style={[styles.diffValue, { color: getStatusColor(lastGainLoss) }]}>
-          {lastGainLoss > 0 ? '+' : ''}{lastGainLoss.toFixed(2)}
-        </Text>
       </View>
-    </View>
   );
 }
 

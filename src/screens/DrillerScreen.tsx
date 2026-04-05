@@ -56,6 +56,14 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const [resetComment, setResetComment] = useState('');
   const [resetStand, setResetStand] = useState('');
   const [resetType, setResetType] = useState<ResetType>('SURFACE_EVENT');
+
+  const getGainLossStatus = () => {
+    const absGainLoss = Math.abs(gainLossVolume);
+    if (absGainLoss <= session.tolerance * 0.5) return 'OK';
+    if (absGainLoss <= session.tolerance) return 'WARNING';
+    return 'ALARM';
+  };
+
   if (!session) {
     return (
       <SafeAreaView style={styles.container}>
@@ -66,8 +74,9 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
     );
   }
 
-  const allEvents = session.segments.flatMap(s => s.events).slice(-10).reverse();
+  const allEvents = session.segments.flatMap(s => s.events).reverse();
   const addStandEvents = allEvents.filter(e => e.type === 'ADD_STAND');
+  const lastEvent = allEvents[0];
 
   const handleAddStand = () => {
     if (!inputValue) return;
@@ -243,11 +252,10 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             size="large"
             style={styles.valueItem}
           />
-          <ValueDisplay
+<ValueDisplay
             label="Accumulated Volume"
             value={actualCumulativeVolume}
             unit={session.volumeUnit}
-            status={deviationStatus}
             size="large"
             style={styles.valueItem}
           />
@@ -255,10 +263,11 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             label="Gain / Loss"
             value={gainLossVolume}
             unit={session.volumeUnit}
-            status={deviationStatus}
+            status={getGainLossStatus()}
             size="large"
             style={styles.valueItem}
           />
+
         </View>
 
         <View style={styles.volumeGrid}>
@@ -267,12 +276,14 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             value={currentObservedVolume}
             unit={session.volumeUnit}
             style={styles.volumeItem}
+            valueColor={colors.white}
           />
           <ValueDisplay
-            label="Total Volume"
+            label="TT Volume"
             value={currentTotalVolume}
             unit={session.volumeUnit}
             style={styles.volumeItem}
+            valueColor={colors.white}
           />
         </View>
 
@@ -285,41 +296,6 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             style={styles.trend}
           />
         )}
-
-        <View style={styles.actions}>
-          {session.mode === 'POOH' && (
-            <Button
-              title="+ SLUG"
-              variant="secondary"
-              onPress={() => setShowSlugModal(true)}
-              style={styles.actionButton}
-            />
-          )}
-          <Button
-            title="END TRIP"
-            variant="danger"
-            onPress={() => setShowEndTripModal(true)}
-            style={styles.actionButton}
-          />
-          <Button
-            title="SURFACE RESET"
-            variant="secondary"
-            onPress={() => openResetModal('SURFACE_EVENT')}
-            style={styles.actionButton}
-          />
-          <Button
-            title="EMPTY/FILL TT"
-            variant="secondary"
-            onPress={() => openResetModal('EMPTY_FILL_TT')}
-            style={styles.actionButton}
-          />
-          <Button
-            title="COMMENT"
-            variant="secondary"
-            onPress={() => setShowCommentModal(true)}
-            style={styles.actionButton}
-          />
-        </View>
 
         <TouchableOpacity 
           style={styles.logToggle}
@@ -347,27 +323,68 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
         <View style={styles.spacer} />
       </ScrollView>
 
-      <View style={styles.inputSection}>
-        {session.loggingInterval > 1 && (
-          <Button
-            title="LOG SINGLE STAND"
-            variant="outline"
-            onPress={handleSingleStandLog}
-            disabled={!inputValue || session.currentStand >= session.totalStands}
-            style={styles.singleStandButton}
-          />
-        )}
-        <View style={{ width: '60%', alignSelf: 'center' }}>
-          <InputPad
-            value={inputValue}
-            onChange={setInputValue}
-            unit={session.volumeUnit}
-            onSubmit={handleAddStand}
-            submitLabel={`LOG ${session.loggingInterval} STAND${session.loggingInterval > 1 ? 'S' : ''}`}
-            submitDisabled={session.currentStand >= session.totalStands}
-          />
+<View style={styles.inputSection}>
+          <View style={styles.actionsLeft}>
+            {session.mode === 'POOH' && (
+              <Button
+                title="+ SLUG"
+                variant="secondary"
+                size="small"
+                onPress={() => setShowSlugModal(true)}
+                style={styles.actionButtonSmall}
+              />
+            )}
+            <Button
+              title="END TRIP"
+              variant="danger"
+              size="small"
+              onPress={() => setShowEndTripModal(true)}
+              style={styles.actionButtonSmall}
+            />
+            <Button
+              title="SURFACE RESET"
+              variant="secondary"
+              size="small"
+              onPress={() => openResetModal('SURFACE_EVENT')}
+              style={styles.actionButtonSmall}
+            />
+            <Button
+              title="EMPTY/FILL TT"
+              variant="secondary"
+              size="small"
+              onPress={() => openResetModal('EMPTY_FILL_TT')}
+              style={styles.actionButtonSmall}
+            />
+            <Button
+              title="COMMENT"
+              variant="secondary"
+              size="small"
+              onPress={() => setShowCommentModal(true)}
+              style={styles.actionButtonSmall}
+            />
+          </View>
+
+          <View style={styles.inputRight}>
+            {session.loggingInterval > 1 && (
+              <Button
+                title="LOG SINGLE"
+                variant="outline"
+                size="small"
+                onPress={handleSingleStandLog}
+                disabled={!inputValue || session.currentStand >= session.totalStands}
+                style={styles.singleStandButton}
+              />
+            )}
+            <InputPad
+              value={inputValue}
+              onChange={setInputValue}
+              unit={session.volumeUnit}
+              onSubmit={handleAddStand}
+              submitLabel={`LOG ${session.loggingInterval} STAND${session.loggingInterval > 1 ? 'S' : ''}`}
+              submitDisabled={session.currentStand >= session.totalStands}
+            />
+          </View>
         </View>
-      </View>
 
       <Modal
         visible={showEndTripModal}
@@ -665,15 +682,31 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     height: 120,
   },
   inputSection: {
-    paddingHorizontal: SPACING.md,
-    paddingTop: SPACING.sm,
-    paddingBottom: SPACING.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: SPACING.sm,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.xs,
     backgroundColor: colors.background,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
+  actionsLeft: {
+    width: '45%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 3,
+  },
+  inputRight: {
+    width: '50%',
+  },
+  actionButtonSmall: {
+    flex: 1,
+    minWidth: '45%',
+  },
   singleStandButton: {
-    marginBottom: SPACING.sm,
+    marginBottom: 4,
   },
   modalOverlay: {
     flex: 1,

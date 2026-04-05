@@ -11,6 +11,7 @@ interface ValueDisplayProps {
   status?: DeviationStatus;
   size?: 'small' | 'large';
   style?: ViewStyle;
+  valueColor?: string;
 }
 
 export function ValueDisplay({
@@ -20,6 +21,7 @@ export function ValueDisplay({
   status,
   size = 'small',
   style,
+  valueColor,
 }: ValueDisplayProps) {
   const { colors } = useAppTheme();
   const getStatusColor = () => {
@@ -42,7 +44,7 @@ export function ValueDisplay({
     <View style={[styles.container, style]}>
       <Text style={styles.label}>{label}</Text>
       <View style={styles.valueContainer}>
-        <Text style={[valueStyle, { color: status ? getStatusColor() : colors.textPrimary }]}>
+        <Text style={[valueStyle, { color: valueColor || (status ? getStatusColor() : colors.success) }]}>
           {value.toFixed(2)}
         </Text>
         <Text style={styles.unit}>{unit}</Text>

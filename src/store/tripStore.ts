@@ -408,6 +408,9 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const newSection = getCurrentSection(resetProgressedStand, session.sections);
 
+    const resetDiff = resetActualTT - (session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection);
+    const newStatus = getDeviationStatus(resetDiff, session.tolerance);
+
     set({
       session: updatedSession,
       currentExpectedTT: resetExpectedTT,
@@ -418,7 +421,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentExpectedTotalVolume: resetExpectedTT,
       currentDisplayStand: resetStandDisplay,
       calculatedCumulativeVolume,
-      deviationStatus: 'OK',
+      deviationStatus: newStatus,
       currentSection: newSection,
       inputValue: '',
     });

@@ -6,19 +6,37 @@ import { useAppTheme } from '../theme/ThemeProvider';
 interface ProgressBarProps {
   current: number;
   total: number;
+  gainLoss?: number;
+  status?: 'OK' | 'WARNING' | 'ALARM';
   style?: ViewStyle;
 }
 
-export function ProgressBar({ current, total, style }: ProgressBarProps) {
+export function ProgressBar({ current, total, gainLoss, status, style }: ProgressBarProps) {
   const { colors } = useAppTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
   const percentage = total > 0 ? (current / total) * 100 : 0;
+
+  const getStatusColor = () => {
+    if (!status) return colors.textPrimary;
+    switch (status) {
+      case 'OK': return colors.success;
+      case 'WARNING': return colors.warning;
+      case 'ALARM': return colors.danger;
+    }
+  };
 
   return (
     <View style={[styles.container, style]}>
       <View style={styles.header}>
         <Text style={styles.label}>PROGRESS</Text>
-        <Text style={styles.percentage}>{Math.round(percentage)}%</Text>
+        <View style={styles.statusRow}>
+          {gainLoss !== undefined && (
+            <Text style={[styles.gainLoss, { color: getStatusColor() }]}>
+              {gainLoss > 0 ? '+' : ''}{gainLoss.toFixed(2)}
+            </Text>
+          )}
+          <Text style={styles.percentage}>{Math.round(percentage)}%</Text>
+        </View>
       </View>
       <View style={styles.barContainer}>
         <View style={[styles.bar, { width: `${Math.min(percentage, 100)}%` }]} />
@@ -48,6 +66,15 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
   percentage: {
     fontSize: FONT_SIZES.caption,
     color: colors.accent,
+    fontWeight: '600',
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  gainLoss: {
+    fontSize: FONT_SIZES.caption,
     fontWeight: '600',
   },
   barContainer: {
