@@ -5,3 +5,4 @@ export { InputPad } from './InputPad';
 export { TrendSlope } from './TrendSlope';
 export { EventItem } from './EventItem';
 export { SectionCard } from './SectionCard';
+export { TubularPicker } from './TubularPicker';

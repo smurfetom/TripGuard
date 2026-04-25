@@ -62,7 +62,9 @@ export interface TripSession {
   tolerance: number;
   startStand: number;
   loggingInterval: number;
-  steelDisplacementPerMeter: number;
+  openEndDisplacement: number;
+  closedEndDisplacement: number;
+  displacementMode: DisplacementMode;
   averageStandLength: number;
   defaultDisplacementPerStand: number;
   currentStand: number;
@@ -91,7 +93,9 @@ export interface TripConfig {
   initialTT: number;
   startStand: number;
   loggingInterval: number;
-  steelDisplacementPerMeter: number;
+  openEndDisplacement: number;
+  closedEndDisplacement: number;
+  displacementMode: DisplacementMode;
   averageStandLength: number;
   slugMudWeight?: number;
   holeMudWeight?: number;
@@ -108,7 +112,9 @@ export interface SetupTemplate {
   initialTT: number;
   startStand: number;
   loggingInterval: number;
-  steelDisplacementPerMeter: number;
+  openEndDisplacement: number;
+  closedEndDisplacement: number;
+  displacementMode: DisplacementMode;
   averageStandLength: number;
   slugMudWeight?: number;
   holeMudWeight?: number;

@@ -23,6 +23,7 @@ import {
   getDisplayStandNumber,
   getProgressedStandsFromDisplay,
   getNextScheduledDisplayStand,
+  calculateDisplacementPerStand,
 } from '../utils/calculations';
 import { ResetType } from '../types';
 import { saveSession, loadSession, clearSession } from '../utils/storage';
@@ -54,21 +55,25 @@ interface TripState {
   endSession: () => void;
   restoreSession: () => Promise<void>;
   clearCurrentSession: () => Promise<void>;
+  switchMode: (newMode: TripMode, newStand: number, resetVolumes: boolean) => void;
+  setDisplacementMode: (mode: 'open_end' | 'closed_end') => void;
 }
 
 function normalizeSession(session: TripSession): TripSession {
-  const steelDisplacementPerMeter = session.steelDisplacementPerMeter ?? 5.03;
+  const openEndDisplacement = session.openEndDisplacement ?? 0;
+  const closedEndDisplacement = session.closedEndDisplacement ?? 0;
+  const displacementMode = session.displacementMode ?? 'closed_end';
   const averageStandLength = session.averageStandLength ?? 28.83;
-  const defaultDisplacementPerStand = session.defaultDisplacementPerStand ?? calculateDisplacementFromSheet(
-    steelDisplacementPerMeter,
-    averageStandLength
-  );
+  const defaultDisplacementPerStand = session.defaultDisplacementPerStand ?? 
+    (session.sections.length > 0 ? 0 : (displacementMode === 'open_end' ? (openEndDisplacement > 0 ? openEndDisplacement * averageStandLength / 1000 : 0) : (closedEndDisplacement > 0 ? closedEndDisplacement * averageStandLength / 1000 : 0)));
 
   return {
     ...session,
     startStand: session.startStand ?? 0,
     loggingInterval: session.loggingInterval ?? 5,
-    steelDisplacementPerMeter,
+    openEndDisplacement,
+    closedEndDisplacement,
+    displacementMode,
     averageStandLength,
     defaultDisplacementPerStand,
     resetBaselineVolume: session.resetBaselineVolume ?? session.initialTT,
@@ -97,9 +102,12 @@ export const useTripStore = create<TripState>((set, get) => ({
 
   startSession: (config: TripConfig) => {
     const totalStands = calculateTotalStands(config.sections) || config.totalStands;
+    const displacementMode = config.displacementMode ?? 'closed_end';
     const defaultDisplacementPerStand = config.sections.length > 0
       ? 0
-      : calculateDisplacementFromSheet(config.steelDisplacementPerMeter, config.averageStandLength);
+      : displacementMode === 'open_end'
+        ? (config.openEndDisplacement > 0 ? config.openEndDisplacement * config.averageStandLength / 1000 : 0)
+        : (config.closedEndDisplacement > 0 ? config.closedEndDisplacement * config.averageStandLength / 1000 : 0);
     const initialExpected = config.initialTT;
 
     const firstSegment: Segment = {
@@ -120,7 +128,9 @@ export const useTripStore = create<TripState>((set, get) => ({
       tolerance: config.tolerance,
       startStand: config.startStand,
       loggingInterval: config.loggingInterval,
-      steelDisplacementPerMeter: config.steelDisplacementPerMeter,
+      openEndDisplacement: config.openEndDisplacement,
+      closedEndDisplacement: config.closedEndDisplacement,
+      displacementMode,
       averageStandLength: config.averageStandLength,
       defaultDisplacementPerStand,
       currentStand: 0,
@@ -174,6 +184,13 @@ export const useTripStore = create<TripState>((set, get) => ({
     const observedVolume = actualTT;
     const observedDirection = session.mode === 'RIH' ? 1 : -1;
 
+    const activeSegment = session.segments.find(
+      (segment) => segment.id === session.activeSegmentId
+    );
+    if (!activeSegment) return;
+
+    const segmentStartStand = activeSegment.startStand;
+
     const newStand = (() => {
       if (step) {
         return Math.min(session.currentStand + step, session.totalStands);
@@ -181,12 +198,12 @@ export const useTripStore = create<TripState>((set, get) => ({
 
       const nextDisplayStand = getNextScheduledDisplayStand(
         currentDisplayStand,
-        session.startStand,
+        segmentStartStand,
         session.loggingInterval,
         session.mode
       );
       const nextProgressedStand = getProgressedStandsFromDisplay(
-        session.startStand,
+        segmentStartStand,
         nextDisplayStand,
         session.mode
       );
@@ -194,18 +211,26 @@ export const useTripStore = create<TripState>((set, get) => ({
       return Math.min(nextProgressedStand, session.totalStands);
     })();
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
-    const activeSegment = session.segments.find(
-      (segment) => segment.id === session.activeSegmentId
-    );
-    if (!activeSegment) return;
 
-    const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
-      newStand,
-      0,
-      session.sections,
-      session.mode,
-      session.defaultDisplacementPerStand
-    );
+    const currentCalcVolume = get().calculatedCumulativeVolume;
+    const newStandsLogged = newStand - session.currentStand;
+    const calcDirection = session.mode === 'POOH' ? -1 : 1;
+    
+    let disp = 0;
+    if (session.sections.length > 0) {
+      let currentSection = getCurrentSection(session.currentStand, session.sections);
+      if (!currentSection) {
+        currentSection = session.sections[0];
+      }
+      if (currentSection) {
+        disp = calculateDisplacementPerStand(currentSection, 'metric', session.displacementMode);
+      }
+    } else {
+      disp = isNaN(session.defaultDisplacementPerStand) ? 0 : session.defaultDisplacementPerStand;
+    }
+    
+    const incrementalVolume = newStandsLogged * disp * calcDirection;
+    const calculatedCumulativeVolume = currentCalcVolume + incrementalVolume;
 
     const actualCumulativeVolume = get().actualCumulativeVolume + (observedVolume * observedDirection);
     const gainLossVolume = calculateGainLossVolume(actualCumulativeVolume, calculatedCumulativeVolume);
@@ -217,7 +242,7 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const diff = calculateDiff(currentTotalVolume, expectedTotalVolume);
     const status = getDeviationStatus(diff, session.tolerance);
-    const displayStand = getDisplayStandNumber(session.startStand, newStand, session.mode);
+    const displayStand = getDisplayStandNumber(activeSegment.startStand, newStand, session.mode);
 
     const newEvent: Event = {
       id: createId(),
@@ -279,6 +304,10 @@ export const useTripStore = create<TripState>((set, get) => ({
   addSlug: (volume: number) => {
     const { session, currentActualTT, currentExpectedTT, currentTotalVolume } = get();
     if (!session || !session.isActive || session.mode !== 'POOH') return;
+    const activeSegment = session.segments.find(
+      (segment) => segment.id === session.activeSegmentId
+    );
+    if (!activeSegment) return;
     const slugCorrection = calculateSlugCorrectionVolume(
       volume,
       session.slugMudWeight || 0,
@@ -297,7 +326,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       actualTT: currentTotalVolume,
       expectedTT: newExpected,
       diff: currentTotalVolume - newExpected,
-      standNumber: getDisplayStandNumber(session.startStand, session.currentStand, session.mode),
+      standNumber: getDisplayStandNumber(activeSegment.startStand, session.currentStand, session.mode),
       progressedStands: session.currentStand,
       calculatedCumulativeVolume: get().calculatedCumulativeVolume,
       actualCumulativeVolume: get().actualCumulativeVolume,
@@ -345,10 +374,13 @@ export const useTripStore = create<TripState>((set, get) => ({
       getProgressedStandsFromDisplay(session.startStand, resetStandDisplay, session.mode),
       session.totalStands
     );
+    const activeSegment = session.segments.find(
+      (segment) => segment.id === session.activeSegmentId
+    );
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
     const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
       resetProgressedStand,
-      0,
+      activeSegment?.startStand ?? 0,
       session.sections,
       session.mode,
       session.defaultDisplacementPerStand
@@ -432,6 +464,10 @@ export const useTripStore = create<TripState>((set, get) => ({
   addComment: (comment: string) => {
     const { session, currentActualTT, currentExpectedTT, currentTotalVolume } = get();
     if (!session || !session.isActive) return;
+    const activeSegment = session.segments.find(
+      (segment) => segment.id === session.activeSegmentId
+    );
+    if (!activeSegment) return;
 
     const newEvent: Event = {
       id: createId(),
@@ -441,7 +477,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       actualTT: currentTotalVolume,
       expectedTT: currentExpectedTT,
       diff: currentTotalVolume - currentExpectedTT,
-      standNumber: getDisplayStandNumber(session.startStand, session.currentStand, session.mode),
+      standNumber: getDisplayStandNumber(activeSegment.startStand, session.currentStand, session.mode),
       progressedStands: session.currentStand,
       calculatedCumulativeVolume: get().calculatedCumulativeVolume,
       actualCumulativeVolume: get().actualCumulativeVolume,
@@ -498,9 +534,12 @@ export const useTripStore = create<TripState>((set, get) => ({
         const observedVolume = lastEvent?.observedVolume ?? 0;
         const totalVolume = lastEvent?.totalVolume ?? session.resetBaselineVolume;
         const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
+        const activeSegment = session.segments.find(
+          (segment) => segment.id === session.activeSegmentId
+        );
         const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
           currentStand,
-          0,
+          activeSegment?.startStand ?? 0,
           session.sections,
           session.mode,
           session.defaultDisplacementPerStand
@@ -512,7 +551,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         const diff = calculateDiff(totalVolume, expectedTT);
         const status = getDeviationStatus(diff, session.tolerance);
         const section = getCurrentSection(currentStand, session.sections);
-        const displayStand = getDisplayStandNumber(session.startStand, currentStand, session.mode);
+        const displayStand = getDisplayStandNumber(activeSegment?.startStand ?? 0, currentStand, session.mode);
 
         set({
           session,
@@ -555,6 +594,110 @@ export const useTripStore = create<TripState>((set, get) => ({
     }
 
     set({ isLoading: false });
+  },
+
+  switchMode: (newMode: TripMode, newStand: number, resetVolumes: boolean) => {
+    const { session, currentTotalVolume, currentExpectedTT, actualCumulativeVolume, calculatedCumulativeVolume, currentDisplayStand } = get();
+    if (!session || !session.isActive) return;
+
+    let newSegment: Segment;
+    let updatedSegments: Segment[];
+    let newResetBaselineVolume = currentTotalVolume;
+    let newResetAccumulatedBase = actualCumulativeVolume;
+    let newResetCalculatedBase = calculatedCumulativeVolume;
+    let newActualCumulativeVolume: number;
+    let newCalculatedCumulativeVolume: number;
+    let newGainLossVolume = 0;
+
+    if (resetVolumes) {
+      newSegment = {
+        id: createId(),
+        startStand: newStand,
+        startExpected: currentExpectedTT,
+        startActual: currentTotalVolume,
+        events: [],
+        createdAt: Date.now(),
+      };
+      updatedSegments = [...session.segments, newSegment];
+      newActualCumulativeVolume = 0;
+      newCalculatedCumulativeVolume = 0;
+    } else {
+      newSegment = {
+        id: createId(),
+        startStand: newStand,
+        startExpected: currentExpectedTT,
+        startActual: currentTotalVolume,
+        events: [],
+        createdAt: Date.now(),
+      };
+      updatedSegments = [...session.segments, newSegment];
+      newActualCumulativeVolume = actualCumulativeVolume;
+      newCalculatedCumulativeVolume = 0;
+    }
+
+    const updatedSession: TripSession = {
+      ...session,
+      mode: newMode,
+      currentStand: 0,
+      segments: updatedSegments,
+      activeSegmentId: newSegment.id,
+      resetBaselineVolume: newResetBaselineVolume,
+      resetAccumulatedBase: newResetAccumulatedBase,
+      resetCalculatedBase: newResetCalculatedBase,
+      updatedAt: Date.now(),
+    };
+
+    set({ 
+      session: updatedSession,
+      actualCumulativeVolume: newActualCumulativeVolume,
+      calculatedCumulativeVolume: newCalculatedCumulativeVolume,
+      gainLossVolume: newGainLossVolume,
+      currentTotalVolume: resetVolumes ? currentTotalVolume : currentTotalVolume,
+      currentDisplayStand: getDisplayStandNumber(newStand, 0, newMode),
+    });
+    saveSession(updatedSession);
+  },
+
+  setDisplacementMode: (mode: 'open_end' | 'closed_end') => {
+    console.log('=== setDisplacementMode START ===');
+    console.log('Switching to mode:', mode);
+    const { session } = get();
+    if (!session || !session.isActive) {
+      console.log('No session or not active');
+      return;
+    }
+
+    console.log('--- Current Session State ---');
+    console.log('  displacementMode before:', session.displacementMode);
+    console.log('  defaultDisplacementPerStand before:', session.defaultDisplacementPerStand);
+    console.log('  openEndDisplacement:', session.openEndDisplacement, 'L/m');
+    console.log('  closedEndDisplacement:', session.closedEndDisplacement, 'L/m');
+
+    const updatedSections = session.sections.map(section => ({
+      ...section,
+      displacementMode: mode,
+    }));
+
+    const newDefaultDisp = mode === 'open_end'
+      ? (session.openEndDisplacement > 0 ? session.openEndDisplacement * session.averageStandLength / 1000 : 0)
+      : (session.closedEndDisplacement > 0 ? session.closedEndDisplacement * session.averageStandLength / 1000 : 0);
+
+    console.log('--- New Values ---');
+    console.log('  New displacementMode:', mode);
+    console.log('  New defaultDisplacementPerStand:', newDefaultDisp, 'm3/stand');
+    console.log('  (Volume will be recalculated on next stand add)');
+
+    const updatedSession: TripSession = {
+      ...session,
+      sections: updatedSections,
+      displacementMode: mode,
+      defaultDisplacementPerStand: newDefaultDisp,
+      updatedAt: Date.now(),
+    };
+
+    set({ session: updatedSession });
+    saveSession(updatedSession);
+    console.log('=== setDisplacementMode COMPLETE ===');
   },
 
   clearCurrentSession: async () => {

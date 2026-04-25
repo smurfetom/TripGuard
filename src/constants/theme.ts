@@ -78,11 +78,41 @@ export const SECTION_TYPES = [
   { value: 'BHA', label: 'BHA' },
   { value: 'DP', label: 'Drill Pipe' },
   { value: 'HWDP', label: 'HWDP' },
+  { value: 'CASING', label: 'Casing' },
   { value: 'CUSTOM', label: 'Custom' },
 ] as const;
 
+export const TUBULAR_PRESETS = [
+  // BHA - displacement values in L/m
+  { type: 'BHA', name: '8 1/2" BHA', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 20, standLength: 27 },
+  { type: 'BHA', name: '12 1/4" BHA', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 25, standLength: 27 },
+  { type: 'BHA', name: '17 1/2" BHA', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 35, standLength: 27 },
+  
+  // Drill Pipe (DP) - displacement values in L/m
+  { type: 'DP', name: '2 7/8" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 12, standLength: 27 },
+  { type: 'DP', name: '3 1/2" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 15, standLength: 27 },
+  { type: 'DP', name: '4" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 16, standLength: 27 },
+  { type: 'DP', name: '5" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 18, standLength: 27 },
+  { type: 'DP', name: '5 7/8" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 24, standLength: 27 },
+  { type: 'DP', name: '6 5/8" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 30, standLength: 27 },
+  
+  // HWDP - displacement values in L/m
+  { type: 'HWDP', name: '5" HWDP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 26, standLength: 27 },
+  { type: 'HWDP', name: '5 7/8" HWDP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 35, standLength: 27 },
+  { type: 'HWDP', name: '6 5/8" HWDP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 40, standLength: 27 },
+  
+  // Casing - displacement values in L/m
+  { type: 'CASING', name: '7" Casing', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 50, standLength: 27 },
+  { type: 'CASING', name: '9 5/8" Casing', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 75, standLength: 27 },
+  { type: 'CASING', name: '13 3/8" Casing', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 110, standLength: 27 },
+  
+  // Custom - displacement values in L/m
+  { type: 'CUSTOM', name: 'Custom', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 18, standLength: 27 },
+];
+
+export const getPresetsByType = (type: string) => TUBULAR_PRESETS.filter(p => p.type === type);
+
 export const DISPLACEMENT_MODES = [
-  { value: 'manual', label: 'Manual' },
   { value: 'open_end', label: 'Open End' },
   { value: 'closed_end', label: 'Closed End' },
 ] as const;
@@ -114,6 +144,13 @@ export const SECTION_TYPE_PRESETS = {
     standLength: '27',
     sectionLength: '270',
     displacementPerStand: '0.015',
+    standCapacity: '',
+  },
+  CASING: {
+    name: 'Casing',
+    standLength: '27',
+    sectionLength: '270',
+    displacementPerStand: '0.040',
     standCapacity: '',
   },
 } as const;

@@ -8,9 +8,11 @@ const STORAGE_KEYS = {
   TEMPLATES: '@tripguard_templates',
 };
 
-function keyWithLicense(baseKey: string): string {
+export function keyWithLicense(baseKey: string): string {
   const id = getCurrentLicenseId();
-  return id ? `${baseKey}:${id}` : baseKey;
+  console.log('keyWithLicense called:', baseKey, 'licenseId:', id);
+  if (!id) return `default:${baseKey}`;
+  return `${baseKey}:${id}`;
 }
 
 export async function saveSession(session: TripSession): Promise<void> {

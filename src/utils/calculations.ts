@@ -7,25 +7,39 @@ export function calculateDisplacementFromSheet(
   return (steelDisplacementPerMeter * averageStandLength) / 1000;
 }
 
-export function getSectionDisplacementPerStand(section: Section): number {
-  if (section.displacementMode === 'open_end') {
-    return section.openEndDisplacementPerStand ?? 0;
+export function convertLPerMToM3PerStand(litersPerMeter: number, standLength: number): number {
+  return (litersPerMeter * standLength) / 1000;
+}
+
+export function getSectionDisplacementPerStand(section: Section, sessionDisplacementMode?: string): number {
+  const mode = section.displacementMode === 'manual' 
+    ? (sessionDisplacementMode || 'closed_end')
+    : section.displacementMode;
+  
+  let displacementLperM = 0;
+  
+  if (mode === 'open_end') {
+    displacementLperM = section.openEndDisplacementPerStand ?? 0;
+  } else if (mode === 'closed_end') {
+    displacementLperM = section.closedEndDisplacementPerStand ?? 0;
+  } else {
+    displacementLperM = section.displacementPerStand > 0
+      ? section.displacementPerStand
+      : section.displacementPerMeter * section.standLength;
   }
 
-  if (section.displacementMode === 'closed_end') {
-    return section.closedEndDisplacementPerStand ?? 0;
-  }
-
-  return section.displacementPerStand > 0
-    ? section.displacementPerStand
-    : section.displacementPerMeter * section.standLength;
+  const standLength = section.standLength || 27;
+  const displacementM3PerStand = (displacementLperM * standLength) / 1000;
+  
+  return isNaN(displacementM3PerStand) ? 0 : displacementM3PerStand;
 }
 
 export function calculateDisplacementPerStand(
   section: Section,
-  unitSystem: 'metric' | 'imperial'
+  unitSystem: 'metric' | 'imperial',
+  sessionDisplacementMode?: string
 ): number {
-  return getSectionDisplacementPerStand(section);
+  return getSectionDisplacementPerStand(section, sessionDisplacementMode);
 }
 
 export function getCurrentSection(
@@ -61,7 +75,9 @@ export function calculateExpectedTT(
   let expected = initialTT;
   let accumulatedStands = 0;
   
-  for (const section of sections) {
+  const sectionsToIterate = mode === 'POOH' ? [...sections].reverse() : sections;
+  
+  for (const section of sectionsToIterate) {
     const sectionStands = section.calculatedStands;
     const standsInThisSection = Math.min(
       Math.max(0, currentStand - accumulatedStands),
@@ -128,20 +144,28 @@ export function calculateCumulativeVolumeFromSegment(
   mode: TripMode,
   defaultDisplacementPerStand: number
 ): number {
+  if (isNaN(currentProgressedStands) || isNaN(startProgressedStands) || isNaN(defaultDisplacementPerStand)) {
+    console.log('[calculateCumulativeVolumeFromSegment] NaN detected, returning 0');
+    return 0;
+  }
+
   if (currentProgressedStands <= startProgressedStands) {
     return 0;
   }
 
   if (sections.length === 0) {
     const traversedStands = currentProgressedStands - startProgressedStands;
-    const baseVolume = traversedStands * defaultDisplacementPerStand;
+    const disp = isNaN(defaultDisplacementPerStand) ? 0 : defaultDisplacementPerStand;
+    const baseVolume = traversedStands * disp;
     return mode === 'RIH' ? baseVolume : -baseVolume;
   }
 
   let cumulativeVolume = 0;
   let accumulatedStands = 0;
 
-  for (const section of sections) {
+  const sectionsToIterate = mode === 'POOH' ? [...sections].reverse() : sections;
+
+  for (const section of sectionsToIterate) {
     const sectionStart = accumulatedStands + 1;
     const sectionEnd = accumulatedStands + section.calculatedStands;
     const overlapStart = Math.max(startProgressedStands + 1, sectionStart);
@@ -150,14 +174,15 @@ export function calculateCumulativeVolumeFromSegment(
 
     if (traversedStands > 0) {
       const displacement = calculateDisplacementPerStand(section, 'metric');
-      const baseVolume = displacement * traversedStands;
+      const disp = isNaN(displacement) ? 0 : displacement;
+      const baseVolume = disp * traversedStands;
       cumulativeVolume += mode === 'RIH' ? baseVolume : -baseVolume;
     }
 
     accumulatedStands = sectionEnd;
   }
 
-  return cumulativeVolume;
+  return isNaN(cumulativeVolume) ? 0 : cumulativeVolume;
 }
 
 export function calculateSlugCorrectionVolume(
@@ -201,7 +226,9 @@ export function calculateExpectedFromSegment(
   let expected = startExpected;
   let accumulatedStands = 0;
 
-  for (const section of sections) {
+  const sectionsToIterate = mode === 'POOH' ? [...sections].reverse() : sections;
+
+  for (const section of sectionsToIterate) {
     const sectionStart = accumulatedStands + 1;
     const sectionEnd = accumulatedStands + section.calculatedStands;
     const overlapStart = Math.max(startStand + 1, sectionStart);

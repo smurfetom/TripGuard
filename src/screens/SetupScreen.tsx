@@ -20,12 +20,13 @@ import {
   DISPLACEMENT_MODES,
   SECTION_TYPE_PRESETS,
 } from '../constants/theme';
-import { Button, SectionCard } from '../components';
+import { Button, SectionCard, TubularPicker } from '../components';
 import { useTripStore } from '../store/tripStore';
 import { TripMode, Section, SectionType, VolumeUnit, UnitSystem, DisplacementMode, SetupTemplate } from '../types';
 import { createId } from '../utils/id';
 import { loadTemplates, saveTemplates } from '../utils/storage';
 import { BUILT_IN_TEMPLATES, cloneTemplate } from '../utils/templates';
+import { convertLPerMToM3PerStand } from '../utils/calculations';
 import { useAppTheme } from '../theme/ThemeProvider';
 
 type SetupScreenProps = {
@@ -46,8 +47,9 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   const [totalStands, setTotalStands] = useState('88');
   const [startStand, setStartStand] = useState('0');
   const [loggingInterval, setLoggingInterval] = useState('5');
-  const [initialTT, setInitialTT] = useState('25');
-  const [steelDisplacementPerMeter, setSteelDisplacementPerMeter] = useState('5.03');
+  const [initialTT, setInitialTT] = useState('0');
+  const [openEndDisplacement, setOpenEndDisplacement] = useState('0');
+  const [closedEndDisplacement, setClosedEndDisplacement] = useState('0');
   const [averageStandLength, setAverageStandLength] = useState('28.83');
   const [slugMudWeight, setSlugMudWeight] = useState('1.5');
   const [holeMudWeight, setHoleMudWeight] = useState('1.18');
@@ -80,11 +82,10 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
     setSectionName(preset.name);
     setStandLength(preset.standLength);
     setSectionLength(preset.sectionLength);
-    setDisplacementPerStand(preset.displacementPerStand);
-    setOpenEndDisplacementPerStand('');
+    setOpenEndDisplacementPerStand(preset.displacementPerStand);
     setClosedEndDisplacementPerStand('');
     setStandCapacity(preset.standCapacity);
-    setDisplacementMode('manual');
+    setDisplacementMode('open_end');
   };
 
   const reindexSections = (items: Section[]) => items.map((section, index) => ({ ...section, order: index }));
@@ -99,7 +100,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
     setStartStand(cloned.startStand.toString());
     setLoggingInterval(cloned.loggingInterval.toString());
     setInitialTT(cloned.initialTT.toString());
-    setSteelDisplacementPerMeter(cloned.steelDisplacementPerMeter.toString());
+    setOpenEndDisplacement('0');
+    setClosedEndDisplacement('0');
     setAverageStandLength(cloned.averageStandLength.toString());
     setSlugMudWeight(cloned.slugMudWeight?.toString() || '1.5');
     setHoleMudWeight(cloned.holeMudWeight?.toString() || '1.18');
@@ -130,7 +132,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       startStand: parseInt(startStand, 10) || 0,
       loggingInterval: parseInt(loggingInterval, 10) || 5,
       initialTT: parseNumberInput(initialTT),
-      steelDisplacementPerMeter: parseNumberInput(steelDisplacementPerMeter),
+      openEndDisplacement: parseNumberInput(openEndDisplacement),
+      closedEndDisplacement: parseNumberInput(closedEndDisplacement),
       averageStandLength: parseNumberInput(averageStandLength),
       slugMudWeight: mode === 'POOH' ? parseNumberInput(slugMudWeight) : undefined,
       holeMudWeight: mode === 'POOH' ? parseNumberInput(holeMudWeight) : undefined,
@@ -164,7 +167,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       return parseNumberInput(closedEndDisplacementPerStand);
     }
 
-    return parseNumberInput(displacementPerStand);
+    return parseNumberInput(openEndDisplacementPerStand);
   };
 
   const handleAddSection = () => {
@@ -252,7 +255,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
     const finalTotalStands = totalCalculated > 0 ? totalCalculated : parseInt(totalStands) || 88;
     const interval = parseInt(loggingInterval, 10) || 5;
     const startStandValue = parseInt(startStand, 10) || 0;
-    const steelDisp = parseNumberInput(steelDisplacementPerMeter);
+    const openEndDisp = parseNumberInput(openEndDisplacement);
+    const closedEndDisp = parseNumberInput(closedEndDisplacement);
     const avgStand = parseNumberInput(averageStandLength);
 
     if (interval !== 1 && interval !== 5) {
@@ -260,8 +264,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       return;
     }
 
-    if (steelDisp <= 0 || avgStand <= 0) {
-      Alert.alert('Invalid Trip Sheet Inputs', 'Steel displacement per meter and average stand length must be greater than zero.');
+    if (sections.length === 0 && openEndDisp <= 0 && closedEndDisp <= 0) {
+      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Open End / Closed End displacement values.');
       return;
     }
 
@@ -280,7 +284,9 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       initialTT: parseFloat(initialTT) || 0,
       startStand: startStandValue,
       loggingInterval: interval,
-      steelDisplacementPerMeter: steelDisp,
+      openEndDisplacement: openEndDisp,
+      closedEndDisplacement: closedEndDisp,
+      displacementMode: sections.length > 0 ? 'closed_end' : 'closed_end',
       averageStandLength: avgStand,
       slugMudWeight: mode === 'POOH' ? parseNumberInput(slugMudWeight) : undefined,
       holeMudWeight: mode === 'POOH' ? parseNumberInput(holeMudWeight) : undefined,
@@ -385,7 +391,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
                 </View>
               </View>
               <View style={styles.field}>
-                <Text style={styles.label}>Tolerance</Text>
+                <Text style={styles.label}>Tolerance (m³)</Text>
                 <TextInput
                   style={styles.input}
                   value={tolerance}
@@ -432,16 +438,35 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
 
             <View style={styles.row}>
               <View style={styles.field}>
-                <Text style={styles.label}>Steel Disp. (L/m)</Text>
+                <Text style={styles.label}>Open End Disp. (L/m)</Text>
                 <TextInput
-                  style={styles.input}
-                  value={steelDisplacementPerMeter}
-                  onChangeText={setSteelDisplacementPerMeter}
+                  style={[styles.input, sections.length > 0 && styles.inputDisabled]}
+                  value={openEndDisplacement}
+                  onChangeText={setOpenEndDisplacement}
                   keyboardType="decimal-pad"
-                  placeholder="5.03"
+                  placeholder={sections.length > 0 ? "Using section values" : "0"}
                   placeholderTextColor={colors.textSecondary}
+                  editable={sections.length === 0}
                 />
               </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={styles.field}>
+                <Text style={styles.label}>Closed End Disp. (L/m)</Text>
+                <TextInput
+                  style={[styles.input, sections.length > 0 && styles.inputDisabled]}
+                  value={closedEndDisplacement}
+                  onChangeText={setClosedEndDisplacement}
+                  keyboardType="decimal-pad"
+                  placeholder={sections.length > 0 ? "Using section values" : "0"}
+                  placeholderTextColor={colors.textSecondary}
+                  editable={sections.length === 0}
+                />
+              </View>
+            </View>
+
+            <View style={styles.row}>
               <View style={styles.field}>
                 <Text style={styles.label}>Avg Stand Length (m)</Text>
                 <TextInput
@@ -455,10 +480,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
               </View>
             </View>
 
-            <Text style={styles.helperText}>
-              The trip sheet expected volume is based on steel displacement per meter multiplied by average stand length.
-            </Text>
-          </View>
+            </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>INITIAL TRIP TANK</Text>
@@ -502,19 +524,6 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
             </View>
           )}
 
-          {sections.length === 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>TOTAL STANDS</Text>
-              <TextInput
-                style={styles.input}
-                value={totalStands}
-                onChangeText={setTotalStands}
-                keyboardType="number-pad"
-                placeholder="88"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-          )}
 
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -572,6 +581,22 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
               </View>
 
               <View style={styles.field}>
+                <Text style={styles.label}>Tubular Size</Text>
+                <TubularPicker
+                  selectedType={sectionType}
+                  onSelect={(preset) => {
+                    const standLength = preset.standLength || 27;
+                    setOpenEndDisplacementPerStand(preset.openEndDisplacementPerStand?.toString() || '');
+                    setClosedEndDisplacementPerStand(preset.closedEndDisplacementPerStand?.toString() || '');
+                    setStandLength(standLength.toString());
+                    setSectionName(preset.name);
+                    setStandCapacity(preset.standCapacity?.toString() || '');
+                  }}
+                  value={sectionName}
+                />
+              </View>
+
+              <View style={styles.field}>
                 <Text style={styles.label}>Displacement Basis</Text>
                 <View style={styles.optionGrid}>
                   {DISPLACEMENT_MODES.map((option) => (
@@ -607,24 +632,10 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
                   keyboardType="decimal-pad"
                 />
               </View>
-              
-              {displacementMode === 'manual' && (
-                <View style={styles.field}>
-                  <Text style={styles.label}>Manual Displacement / Stand ({volumeUnit})</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={displacementPerStand}
-                    onChangeText={setDisplacementPerStand}
-                    keyboardType="decimal-pad"
-                    placeholder="0.015"
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                </View>
-              )}
 
               {displacementMode === 'open_end' && (
                 <View style={styles.field}>
-                  <Text style={styles.label}>Open End Displacement / Stand ({volumeUnit})</Text>
+                  <Text style={styles.label}>Open End Displacement / Stand (L/m)</Text>
                   <TextInput
                     style={styles.input}
                     value={openEndDisplacementPerStand}
@@ -638,7 +649,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
 
               {displacementMode === 'closed_end' && (
                 <View style={styles.field}>
-                  <Text style={styles.label}>Closed End Displacement / Stand ({volumeUnit})</Text>
+                  <Text style={styles.label}>Closed End Displacement / Stand (L/m)</Text>
                   <TextInput
                     style={styles.input}
                     value={closedEndDisplacementPerStand}
@@ -662,18 +673,14 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
                 />
               </View>
 
-              <Text style={styles.helperText}>
-                Stand capacity is stored for reference only and does not affect trip volume calculations.
-              </Text>
-
               <View style={styles.previewCard}>
                 <Text style={styles.previewTitle}>Live Preview</Text>
                 <Text style={styles.previewLine}>{sectionName || 'Unnamed'} • {sectionType}</Text>
                 <Text style={styles.previewLine}>Basis: {displacementMode.replace('_', ' ')}</Text>
                 <Text style={styles.previewLine}>Stands: {editorCalculatedStands}</Text>
-                <Text style={styles.previewLine}>Active displacement: {editorActiveDisplacement.toFixed(3)} {volumeUnit}/stand</Text>
+                <Text style={styles.previewLine}>Active displacement: {editorActiveDisplacement.toFixed(3)} L/m</Text>
                 <Text style={styles.previewLine}>Stand capacity: {standCapacity || '--'} {volumeUnit}</Text>
-                <Text style={styles.previewLine}>Trip sheet disp/stand: {(parseNumberInput(steelDisplacementPerMeter) * parseNumberInput(averageStandLength) / 1000).toFixed(3)} {volumeUnit}/stand</Text>
+                <Text style={styles.previewLine}>Trip sheet disp/stand: {sections.length > 0 ? editorActiveDisplacement.toFixed(3) : (parseNumberInput(openEndDisplacement) > 0 ? parseNumberInput(openEndDisplacement) : parseNumberInput(closedEndDisplacement)).toFixed(3)} L/m</Text>
                 <Text style={styles.previewLine}>Logging: every {loggingInterval} stand(s)</Text>
               </View>
                
@@ -775,6 +782,7 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
   },
   templateButton: {
     flex: 1,
+    maxWidth: 150,
   },
   toggle: {
     flexDirection: 'row',
@@ -865,11 +873,15 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
   input: {
     backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
-    padding: SPACING.md,
-    fontSize: FONT_SIZES.body,
+    padding: SPACING.sm,
+    fontSize: FONT_SIZES.caption,
     color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
+    maxWidth: 150,
+  },
+  inputDisabled: {
+    opacity: 0.5,
   },
   helperText: {
     fontSize: FONT_SIZES.caption,
@@ -928,6 +940,8 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.lg,
     maxHeight: '80%',
+    maxWidth: 400,
+    width: '100%',
   },
   modalTitle: {
     fontSize: FONT_SIZES.heading,

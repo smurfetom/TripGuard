@@ -43,6 +43,8 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
     deviationStatus,
     currentSection,
     clearCurrentSession,
+    switchMode,
+    setDisplacementMode,
   } = useTripStore();
   
   const [showLog, setShowLog] = useState(false);
@@ -50,6 +52,17 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const [showCommentModal, setShowCommentModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showEndTripModal, setShowEndTripModal] = useState(false);
+  const [showModeSwitchModal, setShowModeSwitchModal] = useState(false);
+  const [showDisplacementModeModal, setShowDisplacementModeModal] = useState(false);
+  const currentDisplacementMode = session?.displacementMode ?? 'closed_end';
+  const setCurrentDisplacementMode = (mode: string) => {
+    if (mode === 'open_end' || mode === 'closed_end') {
+      setDisplacementMode(mode);
+    }
+  };
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [pendingModeSwitch, setPendingModeSwitch] = useState<'RIH' | 'POOH' | null>(null);
+  const [modeSwitchStand, setModeSwitchStand] = useState('');
   const [slugValue, setSlugValue] = useState('');
   const [commentValue, setCommentValue] = useState('');
   const [resetValue, setResetValue] = useState('');
@@ -57,7 +70,36 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const [resetStand, setResetStand] = useState('');
   const [resetType, setResetType] = useState<ResetType>('SURFACE_EVENT');
 
+  const handleModeSwitchPress = () => {
+    console.log('handleModeSwitchPress called');
+    if (!session) {
+      console.log('No session');
+      return;
+    }
+    const newMode = session.mode === 'RIH' ? 'POOH' : 'RIH';
+    console.log('Switching to:', newMode);
+    setPendingModeSwitch(newMode);
+    setModeSwitchStand(session.currentStand.toString());
+    setShowModeSwitchModal(true);
+    console.log('Modal should show now');
+  };
+
+  const handleModeSwitchConfirm = () => {
+    if (!session || !pendingModeSwitch) return;
+    const newStand = parseInt(modeSwitchStand, 10);
+    if (isNaN(newStand) || newStand < 0 || newStand > session.totalStands) {
+      Alert.alert('Invalid Stand', 'Please enter a valid stand number.');
+      return;
+    }
+    
+    switchMode(pendingModeSwitch, newStand, true);
+    setShowModeSwitchModal(false);
+    setPendingModeSwitch(null);
+    setModeSwitchStand('');
+  };
+
   const getGainLossStatus = () => {
+    if (!session) return 'OK';
     const absGainLoss = Math.abs(gainLossVolume);
     if (absGainLoss <= session.tolerance * 0.5) return 'OK';
     if (absGainLoss <= session.tolerance) return 'WARNING';
@@ -201,18 +243,33 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView key={refreshKey} style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={[
-              styles.modeBadge,
-              { backgroundColor: session.mode === 'RIH' ? colors.accent : colors.warning }
-            ]}>
-              <Text style={styles.modeText}>{session.mode}</Text>
-            </View>
+            <TouchableOpacity 
+              onPress={handleModeSwitchPress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <View style={[
+                styles.modeBadge,
+                { backgroundColor: session.mode === 'RIH' ? colors.accent : colors.warning }
+              ]}>
+                <Text style={styles.modeText}>{session.mode}</Text>
+              </View>
+            </TouchableOpacity>
             {currentSection && (
               <Text style={styles.sectionName}>{currentSection.name}</Text>
             )}
+            <TouchableOpacity 
+              style={[styles.displacementModeBadge, { marginLeft: SPACING.sm }]}
+              onPress={() => {
+                setShowDisplacementModeModal(true);
+              }}
+            >
+              <Text style={styles.displacementModeText}>
+                {currentDisplacementMode === 'open_end' ? 'Open End' : 'Closed End'}
+              </Text>
+            </TouchableOpacity>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerAction} onPress={onOpenMirror}>
@@ -237,12 +294,6 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           <Text style={styles.tripMetaText}>Current Stand: {currentDisplayStand}</Text>
           <Text style={styles.tripMetaText}>Logging: every {session.loggingInterval}</Text>
         </View>
-
-        <ProgressBar 
-          current={session.currentStand} 
-          total={session.totalStands}
-          style={styles.progress}
-        />
 
         <View style={styles.valuesRow}>
           <ValueDisplay
@@ -550,6 +601,102 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={showModeSwitchModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowModeSwitchModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>
+              Switching to {pendingModeSwitch} Mode
+            </Text>
+            <Text style={styles.modalLabel}>Current Stand Number:</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={modeSwitchStand}
+              onChangeText={setModeSwitchStand}
+              keyboardType="number-pad"
+              placeholder="Enter stand number"
+              placeholderTextColor={colors.textSecondary}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => {
+                  setShowModeSwitchModal(false);
+                  setPendingModeSwitch(null);
+                  setModeSwitchStand('');
+                }}
+                style={styles.modalButton}
+              />
+              <Button
+                title="Next"
+                onPress={handleModeSwitchConfirm}
+                style={styles.modalButton}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={false}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {}}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Mode Switched</Text>
+            <Text style={styles.modalHelper}>Volumes have been reset to start fresh on the new trip</Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showDisplacementModeModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDisplacementModeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Change Displacement Mode</Text>
+            <Text style={styles.modalHelper}>This will update all sections to use the selected displacement mode.</Text>
+            <View style={styles.modalActions}>
+              <Button
+                title="Open End"
+                variant={currentDisplacementMode === 'open_end' ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setCurrentDisplacementMode('open_end');
+                  setShowDisplacementModeModal(false);
+                }}
+                style={styles.modalButton}
+              />
+              <Button
+                title="Closed End"
+                variant={currentDisplacementMode === 'closed_end' ? 'primary' : 'secondary'}
+                onPress={() => {
+                  setCurrentDisplacementMode('closed_end');
+                  setShowDisplacementModeModal(false);
+                }}
+                style={styles.modalButton}
+              />
+            </View>
+            <Button
+              title="Cancel"
+              variant="outline"
+              onPress={() => setShowDisplacementModeModal(false)}
+              style={styles.cancelButton}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -615,6 +762,19 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     fontSize: FONT_SIZES.caption,
     color: colors.textSecondary,
     marginLeft: SPACING.sm,
+  },
+  displacementModeBadge: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: BORDER_RADIUS.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  displacementModeText: {
+    fontSize: FONT_SIZES.caption,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   progress: {
     marginBottom: SPACING.md,
@@ -727,6 +887,11 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     color: colors.textPrimary,
     marginBottom: SPACING.md,
   },
+  modalLabel: {
+    fontSize: FONT_SIZES.body,
+    color: colors.textSecondary,
+    marginBottom: SPACING.sm,
+  },
   modalHelper: {
     fontSize: FONT_SIZES.caption,
     color: colors.textSecondary,
@@ -783,5 +948,8 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
   },
   modalButton: {
     minWidth: 80,
+  },
+  cancelButton: {
+    marginTop: SPACING.md,
   },
 });

@@ -14,7 +14,7 @@ interface ProgressBarProps {
 export function ProgressBar({ current, total, gainLoss, status, style }: ProgressBarProps) {
   const { colors } = useAppTheme();
   const styles = React.useMemo(() => createStyles(colors), [colors]);
-  const percentage = total > 0 ? (current / total) * 100 : 0;
+  const percentage = total > 0 ? Math.min((current / total) * 100, 100) : 0;
 
   const getStatusColor = () => {
     if (!status) return colors.textPrimary;
