@@ -73,6 +73,8 @@ export interface TripSession {
   activeSegmentId: string | null;
   isActive: boolean;
   initialTT: number;
+  initialTripTankVolume: number;
+  previousTripTankVolume: number;
   resetBaselineVolume: number;
   resetAccumulatedBase: number;
   resetCalculatedBase: number;
@@ -91,6 +93,7 @@ export interface TripConfig {
   tolerance: number;
   sections: Section[];
   initialTT: number;
+  initialTripTankVolume: number;
   startStand: number;
   loggingInterval: number;
   openEndDisplacement: number;

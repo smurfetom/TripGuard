@@ -76,6 +76,8 @@ function normalizeSession(session: TripSession): TripSession {
     displacementMode,
     averageStandLength,
     defaultDisplacementPerStand,
+    initialTripTankVolume: session.initialTripTankVolume ?? 1.0,
+    previousTripTankVolume: session.previousTripTankVolume ?? session.initialTripTankVolume ?? 1.0,
     resetBaselineVolume: session.resetBaselineVolume ?? session.initialTT,
     resetAccumulatedBase: session.resetAccumulatedBase ?? 0,
     resetCalculatedBase: session.resetCalculatedBase ?? 0,
@@ -139,6 +141,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       activeSegmentId: firstSegment.id,
       isActive: true,
       initialTT: config.initialTT,
+      initialTripTankVolume: config.initialTripTankVolume ?? 1.0,
+      previousTripTankVolume: config.initialTripTankVolume ?? 1.0,
       resetBaselineVolume: config.initialTT,
       resetAccumulatedBase: 0,
       resetCalculatedBase: 0,
@@ -232,7 +236,19 @@ export const useTripStore = create<TripState>((set, get) => ({
     const incrementalVolume = newStandsLogged * disp * calcDirection;
     const calculatedCumulativeVolume = currentCalcVolume + incrementalVolume;
 
-    const actualCumulativeVolume = get().actualCumulativeVolume + (observedVolume * observedDirection);
+    console.log('[DEBUG calculated] currentCalcVolume:', currentCalcVolume);
+    console.log('[DEBUG calculated] newStandsLogged:', newStandsLogged);
+    console.log('[DEBUG calculated] disp:', disp);
+    console.log('[DEBUG calculated] incrementalVolume:', incrementalVolume);
+    console.log('[DEBUG calculated] calculatedCumulativeVolume:', calculatedCumulativeVolume);
+    console.log('[DEBUG calculated] resetCalculatedBase:', session.resetCalculatedBase);
+
+    const currentTripTankVolume = actualTT;
+    const previousTripTankVolume = session.previousTripTankVolume ?? session.initialTripTankVolume;
+    const tripTankDifference = currentTripTankVolume - previousTripTankVolume;
+    
+    const actualCumulativeVolume = get().actualCumulativeVolume + (tripTankDifference);
+    
     const gainLossVolume = calculateGainLossVolume(actualCumulativeVolume, calculatedCumulativeVolume);
     const localAccumulatedVolume = actualCumulativeVolume - session.resetAccumulatedBase;
     const localCalculatedVolume = calculatedCumulativeVolume - session.resetCalculatedBase;
@@ -276,6 +292,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       ...session,
       currentStand: newStand,
       segments: updatedSegments,
+      previousTripTankVolume: currentTripTankVolume,
       updatedAt: Date.now(),
     };
 
@@ -366,7 +383,7 @@ export const useTripStore = create<TripState>((set, get) => ({
   },
 
   surfaceReset: (resetActualTT: number, resetStandDisplay: number, resetType: ResetType, comment) => {
-    const { session } = get();
+    const { session, calculatedCumulativeVolume: currentCalcVolume } = get();
     if (!session || !session.isActive) return;
     if (Number.isNaN(resetActualTT)) return;
 
@@ -378,13 +395,18 @@ export const useTripStore = create<TripState>((set, get) => ({
       (segment) => segment.id === session.activeSegmentId
     );
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
-    const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
-      resetProgressedStand,
-      activeSegment?.startStand ?? 0,
-      session.sections,
-      session.mode,
-      session.defaultDisplacementPerStand
-    );
+    
+    const isEmptyFillTT = resetType === 'EMPTY_FILL_TT';
+    
+    const calculatedCumulativeVolume = isEmptyFillTT 
+      ? currentCalcVolume 
+      : calculateCumulativeVolumeFromSegment(
+          resetProgressedStand,
+          activeSegment?.startStand ?? 0,
+          session.sections,
+          session.mode,
+          session.defaultDisplacementPerStand
+        );
     const localCalculatedVolume = calculatedCumulativeVolume - session.resetCalculatedBase;
 
     const resetExpectedTT = resetActualTT;
@@ -426,14 +448,19 @@ export const useTripStore = create<TripState>((set, get) => ({
       createdAt: Date.now(),
     };
 
+    console.log('[DEBUG surfaceReset EMPTY_FILL] currentCalcVolume:', currentCalcVolume);
+    console.log('[DEBUG surfaceReset EMPTY_FILL] resetCalculatedBase will be set to:', currentCalcVolume);
+    
     const updatedSession: TripSession = {
       ...session,
       currentStand: resetProgressedStand,
       segments: [...updatedSegments, newSegment],
       activeSegmentId: newSegment.id,
       resetBaselineVolume: resetActualTT,
-      resetAccumulatedBase: get().actualCumulativeVolume,
-      resetCalculatedBase: calculatedCumulativeVolume,
+      resetAccumulatedBase: isEmptyFillTT ? get().actualCumulativeVolume : session.resetAccumulatedBase,
+      resetCalculatedBase: isEmptyFillTT ? currentCalcVolume : calculatedCumulativeVolume,
+      previousTripTankVolume: resetActualTT,
+      initialTripTankVolume: isEmptyFillTT ? session.initialTripTankVolume : resetActualTT,
       accumulatedSlugCorrectionVolume: 0,
       updatedAt: Date.now(),
     };
@@ -452,7 +479,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentTotalVolume: resetActualTT,
       currentExpectedTotalVolume: resetExpectedTT,
       currentDisplayStand: resetStandDisplay,
-      calculatedCumulativeVolume,
+      calculatedCumulativeVolume: currentCalcVolume,
+      actualCumulativeVolume: get().actualCumulativeVolume,
       deviationStatus: newStatus,
       currentSection: newSection,
       inputValue: '',
@@ -537,13 +565,19 @@ export const useTripStore = create<TripState>((set, get) => ({
         const activeSegment = session.segments.find(
           (segment) => segment.id === session.activeSegmentId
         );
-        const calculatedCumulativeVolume = calculateCumulativeVolumeFromSegment(
-          currentStand,
-          activeSegment?.startStand ?? 0,
-          session.sections,
-          session.mode,
-          session.defaultDisplacementPerStand
-        );
+        const segmentStartStand = activeSegment?.startStand ?? 0;
+        const calculatedCumulativeVolume = session.resetCalculatedBase + 
+          calculateCumulativeVolumeFromSegment(
+            currentStand,
+            segmentStartStand,
+            session.sections,
+            session.mode,
+            session.defaultDisplacementPerStand
+          );
+        console.log('[DEBUG restoreSession] resetCalculatedBase:', session.resetCalculatedBase);
+        console.log('[DEBUG restoreSession] segmentStartStand:', segmentStartStand);
+        console.log('[DEBUG restoreSession] currentStand:', currentStand);
+        console.log('[DEBUG restoreSession] calculatedCumulativeVolume:', calculatedCumulativeVolume);
         const actualCumulativeVolume = lastEvent?.actualCumulativeVolume ?? 0;
         const localCalculatedVolume = calculatedCumulativeVolume - session.resetCalculatedBase;
         const expectedTT = session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection;

@@ -47,7 +47,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   const [totalStands, setTotalStands] = useState('88');
   const [startStand, setStartStand] = useState('0');
   const [loggingInterval, setLoggingInterval] = useState('5');
-  const [initialTT, setInitialTT] = useState('0');
+  const [initialTripTankVolume, setInitialTripTankVolume] = useState('1.0');
   const [openEndDisplacement, setOpenEndDisplacement] = useState('0');
   const [closedEndDisplacement, setClosedEndDisplacement] = useState('0');
   const [averageStandLength, setAverageStandLength] = useState('28.83');
@@ -99,7 +99,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
     setTotalStands(cloned.totalStands.toString());
     setStartStand(cloned.startStand.toString());
     setLoggingInterval(cloned.loggingInterval.toString());
-    setInitialTT(cloned.initialTT.toString());
+    setInitialTripTankVolume(cloned.initialTripTankVolume?.toString() || '1.0');
     setOpenEndDisplacement('0');
     setClosedEndDisplacement('0');
     setAverageStandLength(cloned.averageStandLength.toString());
@@ -131,7 +131,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       totalStands: parseInt(totalStands, 10) || totalSectionStands,
       startStand: parseInt(startStand, 10) || 0,
       loggingInterval: parseInt(loggingInterval, 10) || 5,
-      initialTT: parseNumberInput(initialTT),
+      initialTT: parseNumberInput(initialTripTankVolume),
+      initialTripTankVolume: parseNumberInput(initialTripTankVolume),
       openEndDisplacement: parseNumberInput(openEndDisplacement),
       closedEndDisplacement: parseNumberInput(closedEndDisplacement),
       averageStandLength: parseNumberInput(averageStandLength),
@@ -281,7 +282,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       tolerance: parseFloat(tolerance) || 0.5,
       totalStands: finalTotalStands,
       sections,
-      initialTT: parseFloat(initialTT) || 0,
+      initialTT: parseFloat(initialTripTankVolume) || 1.0,
+      initialTripTankVolume: parseFloat(initialTripTankVolume) || 1.0,
       startStand: startStandValue,
       loggingInterval: interval,
       openEndDisplacement: openEndDisp,
@@ -483,13 +485,13 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
             </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>INITIAL TRIP TANK</Text>
+            <Text style={styles.sectionTitle}>INITIAL TRIP TANK VOLUME (m³)</Text>
             <TextInput
               style={styles.input}
-              value={initialTT}
-              onChangeText={setInitialTT}
+              value={initialTripTankVolume}
+              onChangeText={setInitialTripTankVolume}
               keyboardType="decimal-pad"
-              placeholder="25.00"
+              placeholder="1.00"
               placeholderTextColor={colors.textSecondary}
             />
           </View>
