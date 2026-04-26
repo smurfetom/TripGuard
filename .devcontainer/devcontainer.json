@@ -12,7 +12,7 @@
       ]
     }
   },
-  "postCreateCommand": "npm install && npx expo install --fix",
+  "postCreateCommand": "cd TripGuard && npm install && npx expo install --fix",
   "forwardPorts": [19000, 19006],
   "portsAttributes": {
     "19000": {"label": "Expo DevTools", "onForward": "notify"},
