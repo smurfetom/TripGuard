@@ -446,26 +446,35 @@ export const useTripStore = create<TripState>((set, get) => ({
       return segment;
     });
 
-    const newSegment: Segment = {
-      id: createId(),
-      startStand: adjustedResetProgressedStand,
-      startExpected: resetExpectedTT,
-      startActual: resetActualTT,
-      events: [],
-      createdAt: Date.now(),
-    };
-
     console.log('[DEBUG surfaceReset EMPTY_FILL] currentCalcVolume:', currentCalcVolume);
     console.log('[DEBUG surfaceReset EMPTY_FILL] resetCalculatedBase will be set to:', currentCalcVolume);
     console.log('[DEBUG surfaceReset EMPTY_FILL] adjustedResetStandDisplay:', adjustedResetStandDisplay);
     console.log('[DEBUG surfaceReset EMPTY_FILL] adjustedResetProgressedStand:', adjustedResetProgressedStand);
     console.log('[DEBUG surfaceReset EMPTY_FILL] session.currentStand before:', session.currentStand);
     
+    let finalSegments = updatedSegments;
+    let finalActiveSegmentId = session.activeSegmentId;
+    let finalCurrentStand = session.currentStand;
+    
+    if (!isEmptyFillTT) {
+      const newSegment: Segment = {
+        id: createId(),
+        startStand: adjustedResetProgressedStand,
+        startExpected: resetExpectedTT,
+        startActual: resetActualTT,
+        events: [],
+        createdAt: Date.now(),
+      };
+      finalSegments = [...updatedSegments, newSegment];
+      finalActiveSegmentId = newSegment.id;
+      finalCurrentStand = adjustedResetProgressedStand;
+    }
+    
     const updatedSession: TripSession = {
       ...session,
-      currentStand: adjustedResetProgressedStand,
-      segments: [...updatedSegments, newSegment],
-      activeSegmentId: newSegment.id,
+      currentStand: finalCurrentStand,
+      segments: finalSegments,
+      activeSegmentId: finalActiveSegmentId,
       resetBaselineVolume: resetActualTT,
       resetAccumulatedBase: isEmptyFillTT ? get().actualCumulativeVolume : session.resetAccumulatedBase,
       resetCalculatedBase: isEmptyFillTT ? currentCalcVolume : calculatedCumulativeVolume,
@@ -475,7 +484,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       updatedAt: Date.now(),
     };
 
-    const newSection = getCurrentSection(resetProgressedStand, session.sections);
+    const newSection = getCurrentSection(isEmptyFillTT ? session.currentStand : adjustedResetProgressedStand, session.sections);
 
     const resetDiff = resetActualTT - (session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection);
     const newStatus = getDeviationStatus(resetDiff, session.tolerance);
