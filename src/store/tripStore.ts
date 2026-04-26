@@ -398,10 +398,17 @@ export const useTripStore = create<TripState>((set, get) => ({
     
     const isEmptyFillTT = resetType === 'EMPTY_FILL_TT';
     
+    const adjustedResetStandDisplay = isEmptyFillTT 
+      ? get().currentDisplayStand 
+      : resetStandDisplay;
+    const adjustedResetProgressedStand = isEmptyFillTT 
+      ? session.currentStand 
+      : resetProgressedStand;
+    
     const calculatedCumulativeVolume = isEmptyFillTT 
       ? currentCalcVolume 
       : calculateCumulativeVolumeFromSegment(
-          resetProgressedStand,
+          adjustedResetProgressedStand,
           activeSegment?.startStand ?? 0,
           session.sections,
           session.mode,
@@ -419,8 +426,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       actualTT: resetActualTT,
       expectedTT: resetExpectedTT,
       diff: resetActualTT - (session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection),
-      standNumber: resetStandDisplay,
-      progressedStands: resetProgressedStand,
+      standNumber: adjustedResetStandDisplay,
+      progressedStands: adjustedResetProgressedStand,
       calculatedCumulativeVolume,
       actualCumulativeVolume: get().actualCumulativeVolume,
       gainLossVolume: get().gainLossVolume,
@@ -441,7 +448,7 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const newSegment: Segment = {
       id: createId(),
-      startStand: resetProgressedStand,
+      startStand: adjustedResetProgressedStand,
       startExpected: resetExpectedTT,
       startActual: resetActualTT,
       events: [],
@@ -450,10 +457,13 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     console.log('[DEBUG surfaceReset EMPTY_FILL] currentCalcVolume:', currentCalcVolume);
     console.log('[DEBUG surfaceReset EMPTY_FILL] resetCalculatedBase will be set to:', currentCalcVolume);
+    console.log('[DEBUG surfaceReset EMPTY_FILL] adjustedResetStandDisplay:', adjustedResetStandDisplay);
+    console.log('[DEBUG surfaceReset EMPTY_FILL] adjustedResetProgressedStand:', adjustedResetProgressedStand);
+    console.log('[DEBUG surfaceReset EMPTY_FILL] session.currentStand before:', session.currentStand);
     
     const updatedSession: TripSession = {
       ...session,
-      currentStand: resetProgressedStand,
+      currentStand: adjustedResetProgressedStand,
       segments: [...updatedSegments, newSegment],
       activeSegmentId: newSegment.id,
       resetBaselineVolume: resetActualTT,
@@ -470,6 +480,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     const resetDiff = resetActualTT - (session.resetBaselineVolume + localCalculatedVolume + accumulatedSlugCorrection);
     const newStatus = getDeviationStatus(resetDiff, session.tolerance);
 
+    const { currentDisplayStand: prevDisplayStand } = get();
     set({
       session: updatedSession,
       currentExpectedTT: resetExpectedTT,
@@ -478,7 +489,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentObservedVolume: 0,
       currentTotalVolume: resetActualTT,
       currentExpectedTotalVolume: resetExpectedTT,
-      currentDisplayStand: resetStandDisplay,
+      currentDisplayStand: isEmptyFillTT ? prevDisplayStand : resetStandDisplay,
       calculatedCumulativeVolume: currentCalcVolume,
       actualCumulativeVolume: get().actualCumulativeVolume,
       deviationStatus: newStatus,
