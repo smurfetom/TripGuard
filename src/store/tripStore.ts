@@ -219,7 +219,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     })();
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
 
-    const currentCalcVolume = get().calculatedCumulativeVolume;
+    const previousCalcVolume = get().calculatedCumulativeVolume;
     const newStandsLogged = newStand - session.currentStand;
     
     let calculatedCumulativeVolume = 0;
@@ -239,19 +239,19 @@ export const useTripStore = create<TripState>((set, get) => ({
         session.mode,
         session.defaultDisplacementPerStand
       );
-      calculatedCumulativeVolume = session.resetCalculatedBase + (volumeAtNewStand - volumeAtOldStand);
+      const incrementalVolume = volumeAtNewStand - volumeAtOldStand;
+      calculatedCumulativeVolume = previousCalcVolume + incrementalVolume;
     } else {
       const disp = isNaN(session.defaultDisplacementPerStand) ? 0 : session.defaultDisplacementPerStand;
       const calcDirection = session.mode === 'POOH' ? -1 : 1;
       const incrementalVolume = newStandsLogged * disp * calcDirection;
-      calculatedCumulativeVolume = currentCalcVolume + incrementalVolume;
+      calculatedCumulativeVolume = previousCalcVolume + incrementalVolume;
     }
 
-    console.log('[DEBUG calculated] currentCalcVolume:', currentCalcVolume);
+    console.log('[DEBUG calculated] previousCalcVolume:', previousCalcVolume);
     console.log('[DEBUG calculated] newStandsLogged:', newStandsLogged);
     console.log('[DEBUG calculated] segmentStart:', activeSegment.startStand);
     console.log('[DEBUG calculated] calculatedCumulativeVolume:', calculatedCumulativeVolume);
-    console.log('[DEBUG calculated] resetCalculatedBase:', session.resetCalculatedBase);
 
     const currentTripTankVolume = actualTT;
     const previousTripTankVolume = session.previousTripTankVolume ?? session.initialTripTankVolume;
