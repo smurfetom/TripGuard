@@ -103,7 +103,10 @@ export const useTripStore = create<TripState>((set, get) => ({
   isLoading: false,
 
   startSession: (config: TripConfig) => {
-    const totalStands = calculateTotalStands(config.sections) || config.totalStands;
+    const calculatedStands = calculateTotalStands(config.sections);
+    const totalStands = config.sections.length > 0 && calculatedStands > 0 
+      ? calculatedStands 
+      : (config.totalStands || calculatedStands);
     const displacementMode = config.displacementMode ?? 'closed_end';
     const defaultDisplacementPerStand = config.sections.length > 0
       ? 0

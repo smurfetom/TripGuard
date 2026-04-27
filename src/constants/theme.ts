@@ -93,7 +93,7 @@ export const TUBULAR_PRESETS = [
   { type: 'DP', name: '3 1/2" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 15, standLength: 27 },
   { type: 'DP', name: '4" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 16, standLength: 27 },
   { type: 'DP', name: '5" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 18, standLength: 27 },
-  { type: 'DP', name: '5 7/8" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 24, standLength: 27 },
+  { type: 'DP', name: '5 7/8" DP', openEndDisplacementPerStand: 7, closedEndDisplacementPerStand: 12, standCapacity: 24, standLength: 27 },
   { type: 'DP', name: '6 5/8" DP', openEndDisplacementPerStand: 5, closedEndDisplacementPerStand: 10, standCapacity: 30, standLength: 27 },
   
   // HWDP - displacement values in L/m

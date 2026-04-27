@@ -302,7 +302,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   const editorSectionLength = parseNumberInput(sectionLength);
   const editorCalculatedStands = editorStandLength > 0 ? Math.round(editorSectionLength / editorStandLength) : 0;
   const editorActiveDisplacement = getActiveDisplacementPerStand();
-  const canStartTrip = sections.length > 0 || (parseInt(totalStands, 10) || 0) > 0;
+  const canStartTrip = sections.length > 0 || parseInt(totalStands, 10) > 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -824,7 +824,7 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
     color: colors.textSecondary,
   },
   toggleTextActive: {
-    color: colors.white,
+    color: '#000000',
   },
   smallToggle: {
     paddingVertical: SPACING.sm,
