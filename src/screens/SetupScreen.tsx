@@ -788,6 +788,7 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
   },
   toggle: {
     flexDirection: 'row',
+    alignSelf: 'flex-start',
     backgroundColor: colors.surface,
     borderRadius: BORDER_RADIUS.md,
     padding: 4,
