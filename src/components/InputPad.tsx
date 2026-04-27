@@ -150,7 +150,7 @@ const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => Style
   keyText: {
     fontSize: FONT_SIZES.body,
     fontWeight: '600',
-    color: colors.white,
+    color: colors.textPrimary,
   },
   submitButton: {
     backgroundColor: colors.success,
