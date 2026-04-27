@@ -229,6 +229,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       let totalVolume = 0;
       let accumulatedStands = 0;
       
+      console.log('[DEBUG calculated] displacementMode:', session.displacementMode);
+      
       for (const section of session.sections) {
         const sectionStart = accumulatedStands + 1;
         const sectionEnd = accumulatedStands + section.calculatedStands;
@@ -238,7 +240,9 @@ export const useTripStore = create<TripState>((set, get) => ({
         
         if (standsInOverlap > 0) {
           const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
-          totalVolume += displacement * standsInOverlap;
+          const sectionVolume = displacement * standsInOverlap;
+          totalVolume += sectionVolume;
+          console.log('[DEBUG calculated] section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
         }
         
         accumulatedStands = sectionEnd;
@@ -247,6 +251,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       const calcDirection = session.mode === 'POOH' ? -1 : 1;
       const incrementalVolume = totalVolume * calcDirection;
       calculatedCumulativeVolume = previousCalcVolume + incrementalVolume;
+      console.log('[DEBUG calculated] totalVolume:', totalVolume, 'calcDirection:', calcDirection);
     } else {
       const disp = isNaN(session.defaultDisplacementPerStand) ? 0 : session.defaultDisplacementPerStand;
       const calcDirection = session.mode === 'POOH' ? -1 : 1;
