@@ -327,14 +327,12 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
             value={currentObservedVolume}
             unit={session.volumeUnit}
             style={styles.volumeItem}
-            valueColor={colors.white}
           />
           <ValueDisplay
             label="Total Volume"
             value={currentTotalVolume}
             unit={session.volumeUnit}
             style={styles.volumeItem}
-            valueColor={colors.white}
           />
         </View>
 
