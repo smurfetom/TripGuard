@@ -224,22 +224,28 @@ export const useTripStore = create<TripState>((set, get) => ({
     
     let calculatedCumulativeVolume = 0;
     if (session.sections.length > 0) {
-      const segmentStart = activeSegment.startStand;
-      const volumeAtNewStand = calculateCumulativeVolumeFromSegment(
-        newStand,
-        segmentStart,
-        session.sections,
-        session.mode,
-        session.defaultDisplacementPerStand
-      );
-      const volumeAtOldStand = calculateCumulativeVolumeFromSegment(
-        session.currentStand,
-        segmentStart,
-        session.sections,
-        session.mode,
-        session.defaultDisplacementPerStand
-      );
-      const incrementalVolume = volumeAtNewStand - volumeAtOldStand;
+      const startStand = session.currentStand;
+      const endStand = newStand;
+      let totalVolume = 0;
+      let accumulatedStands = 0;
+      
+      for (const section of session.sections) {
+        const sectionStart = accumulatedStands + 1;
+        const sectionEnd = accumulatedStands + section.calculatedStands;
+        const overlapStart = Math.max(startStand + 1, sectionStart);
+        const overlapEnd = Math.min(endStand, sectionEnd);
+        const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+        
+        if (standsInOverlap > 0) {
+          const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
+          totalVolume += displacement * standsInOverlap;
+        }
+        
+        accumulatedStands = sectionEnd;
+      }
+      
+      const calcDirection = session.mode === 'POOH' ? -1 : 1;
+      const incrementalVolume = totalVolume * calcDirection;
       calculatedCumulativeVolume = previousCalcVolume + incrementalVolume;
     } else {
       const disp = isNaN(session.defaultDisplacementPerStand) ? 0 : session.defaultDisplacementPerStand;
@@ -250,7 +256,8 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     console.log('[DEBUG calculated] previousCalcVolume:', previousCalcVolume);
     console.log('[DEBUG calculated] newStandsLogged:', newStandsLogged);
-    console.log('[DEBUG calculated] segmentStart:', activeSegment.startStand);
+    console.log('[DEBUG calculated] currentStand:', session.currentStand);
+    console.log('[DEBUG calculated] newStand:', newStand);
     console.log('[DEBUG calculated] calculatedCumulativeVolume:', calculatedCumulativeVolume);
 
     const currentTripTankVolume = actualTT;
