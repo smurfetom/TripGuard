@@ -317,11 +317,6 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
               <Button title="Status" onPress={onGoToStatus} />
             </View>
           )}
-          {onGoToDiagnostics && (
-            <View style={{ alignItems: 'flex-end', marginBottom: SPACING.md }}>
-              <Button title="Diagnostics" onPress={onGoToDiagnostics} />
-            </View>
-          )}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>THEME</Text>
