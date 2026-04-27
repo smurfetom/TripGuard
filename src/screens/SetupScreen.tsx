@@ -44,7 +44,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
   const [volumeUnit, setVolumeUnit] = useState<VolumeUnit>('m3');
   const [tolerance, setTolerance] = useState('0.5');
-  const [totalStands, setTotalStands] = useState('88');
+  const [totalStands, setTotalStands] = useState('');
   const [startStand, setStartStand] = useState('0');
   const [loggingInterval, setLoggingInterval] = useState('5');
   const [initialTripTankVolume, setInitialTripTankVolume] = useState('1.0');
@@ -253,7 +253,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
     }
 
     const totalCalculated = sections.reduce((sum, s) => sum + s.calculatedStands, 0);
-    const finalTotalStands = totalCalculated > 0 ? totalCalculated : parseInt(totalStands) || 88;
+    const finalTotalStands = totalCalculated > 0 ? totalCalculated : parseInt(totalStands, 10) || 0;
     const interval = parseInt(loggingInterval, 10) || 5;
     const startStandValue = parseInt(startStand, 10) || 0;
     const openEndDisp = parseNumberInput(openEndDisplacement);
