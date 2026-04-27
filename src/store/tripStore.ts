@@ -221,28 +221,35 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const currentCalcVolume = get().calculatedCumulativeVolume;
     const newStandsLogged = newStand - session.currentStand;
-    const calcDirection = session.mode === 'POOH' ? -1 : 1;
     
-    let disp = 0;
+    let calculatedCumulativeVolume = 0;
     if (session.sections.length > 0) {
-      let currentSection = getCurrentSection(session.currentStand, session.sections);
-      if (!currentSection) {
-        currentSection = session.sections[0];
-      }
-      if (currentSection) {
-        disp = calculateDisplacementPerStand(currentSection, 'metric', session.displacementMode);
-      }
+      const segmentStart = activeSegment.startStand;
+      const volumeAtNewStand = calculateCumulativeVolumeFromSegment(
+        newStand,
+        segmentStart,
+        session.sections,
+        session.mode,
+        session.defaultDisplacementPerStand
+      );
+      const volumeAtOldStand = calculateCumulativeVolumeFromSegment(
+        session.currentStand,
+        segmentStart,
+        session.sections,
+        session.mode,
+        session.defaultDisplacementPerStand
+      );
+      calculatedCumulativeVolume = session.resetCalculatedBase + (volumeAtNewStand - volumeAtOldStand);
     } else {
-      disp = isNaN(session.defaultDisplacementPerStand) ? 0 : session.defaultDisplacementPerStand;
+      const disp = isNaN(session.defaultDisplacementPerStand) ? 0 : session.defaultDisplacementPerStand;
+      const calcDirection = session.mode === 'POOH' ? -1 : 1;
+      const incrementalVolume = newStandsLogged * disp * calcDirection;
+      calculatedCumulativeVolume = currentCalcVolume + incrementalVolume;
     }
-    
-    const incrementalVolume = newStandsLogged * disp * calcDirection;
-    const calculatedCumulativeVolume = currentCalcVolume + incrementalVolume;
 
     console.log('[DEBUG calculated] currentCalcVolume:', currentCalcVolume);
     console.log('[DEBUG calculated] newStandsLogged:', newStandsLogged);
-    console.log('[DEBUG calculated] disp:', disp);
-    console.log('[DEBUG calculated] incrementalVolume:', incrementalVolume);
+    console.log('[DEBUG calculated] segmentStart:', activeSegment.startStand);
     console.log('[DEBUG calculated] calculatedCumulativeVolume:', calculatedCumulativeVolume);
     console.log('[DEBUG calculated] resetCalculatedBase:', session.resetCalculatedBase);
 
