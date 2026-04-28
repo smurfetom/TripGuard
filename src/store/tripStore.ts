@@ -206,6 +206,10 @@ export const useTripStore = create<TripState>((set, get) => ({
         return Math.min(session.currentStand + step, session.totalStands);
       }
 
+      if (session.mode === 'POOH') {
+        return Math.max(session.currentStand - session.loggingInterval, 0);
+      }
+
       const nextDisplayStand = getNextScheduledDisplayStand(
         currentDisplayStand,
         segmentStartStand,
@@ -218,9 +222,6 @@ export const useTripStore = create<TripState>((set, get) => ({
         session.mode
       );
 
-      if (session.mode === 'POOH') {
-        return Math.max(nextProgressedStand, 0);
-      }
       return Math.min(nextProgressedStand, session.totalStands);
     })();
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
@@ -260,8 +261,8 @@ export const useTripStore = create<TripState>((set, get) => ({
           const sectionStart = prevSectionEnd - sectionStands + 1;
           const sectionEnd = prevSectionEnd;
           
-          const overlapStart = Math.max(startStand + 1, sectionStart);
-          const overlapEnd = Math.min(endStand, sectionEnd);
+          const overlapStart = Math.max(endStand, sectionStart);
+          const overlapEnd = Math.min(startStand, sectionEnd);
           const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
           
           console.log('[DEBUG POOH] section:', section.name, 'sectionStart:', sectionStart, 'sectionEnd:', sectionEnd, 'overlapStart:', overlapStart, 'overlapEnd:', overlapEnd, 'standsInOverlap:', standsInOverlap);
