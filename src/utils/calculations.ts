@@ -12,7 +12,7 @@ export function convertLPerMToM3PerStand(litersPerMeter: number, standLength: nu
 }
 
 export function getSectionDisplacementPerStand(section: Section, sessionDisplacementMode?: string): number {
-  const mode = section.displacementMode === 'manual' 
+  const mode = (!section.displacementMode || section.displacementMode === 'manual') 
     ? (sessionDisplacementMode || 'closed_end')
     : section.displacementMode;
   
