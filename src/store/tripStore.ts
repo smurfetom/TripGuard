@@ -332,7 +332,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     const displayStand = session.mode === 'POOH'
       ? newStand
       : getDisplayStandNumber(activeSegment.startStand, newStand, session.mode);
-    console.log('[DEBUG addStand] displayStand:', displayStand, 'activeSegment.startStand:', activeSegment.startStand, 'newStand:', newStand, 'mode:', session.mode, 'session.currentStand:', session.currentStand);
+    console.log('[DEBUG addStand] FINAL displayStand:', displayStand, 'newStand:', newStand, 'session.mode:', session.mode);
 
     const newEvent: Event = {
       id: createId(),
