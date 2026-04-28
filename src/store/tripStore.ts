@@ -227,25 +227,57 @@ export const useTripStore = create<TripState>((set, get) => ({
       const startStand = session.currentStand;
       const endStand = newStand;
       let totalVolume = 0;
-      let accumulatedStands = 0;
       
       console.log('[DEBUG calculated] displacementMode:', session.displacementMode);
       
-      for (const section of session.sections) {
-        const sectionStart = accumulatedStands + 1;
-        const sectionEnd = accumulatedStands + section.calculatedStands;
-        const overlapStart = Math.max(startStand + 1, sectionStart);
-        const overlapEnd = Math.min(endStand, sectionEnd);
-        const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
-        
-        if (standsInOverlap > 0) {
-          const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
-          const sectionVolume = displacement * standsInOverlap;
-          totalVolume += sectionVolume;
-          console.log('[DEBUG calculated] section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+      const sectionsToUse = session.mode === 'POOH' 
+        ? [...session.sections].reverse() 
+        : session.sections;
+      
+      let accumulatedStands = 0;
+      const sectionBoundaries = sectionsToUse.map(section => {
+        const start = accumulatedStands + 1;
+        const end = accumulatedStands + section.calculatedStands;
+        const result = { section, start, end };
+        accumulatedStands = end;
+        return result;
+      });
+      
+      if (session.mode === 'POOH') {
+        const totalStands = accumulatedStands;
+        accumulatedStands = 0;
+        for (const sb of sectionBoundaries) {
+          const sectionStart = totalStands - sb.end + 1;
+          const sectionEnd = totalStands - sb.start + 1;
+          const overlapStart = Math.max(startStand + 1, sectionStart);
+          const overlapEnd = Math.min(endStand, sectionEnd);
+          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+          
+          if (standsInOverlap > 0) {
+            const displacement = calculateDisplacementPerStand(sb.section, 'metric', session.displacementMode);
+            const sectionVolume = displacement * standsInOverlap;
+            totalVolume += sectionVolume;
+            console.log('[DEBUG calculated] section:', sb.section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+          }
+          accumulatedStands = sectionEnd;
         }
-        
-        accumulatedStands = sectionEnd;
+      } else {
+        accumulatedStands = 0;
+        for (const sb of sectionBoundaries) {
+          const sectionStart = sb.start;
+          const sectionEnd = sb.end;
+          const overlapStart = Math.max(startStand + 1, sectionStart);
+          const overlapEnd = Math.min(endStand, sectionEnd);
+          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+          
+          if (standsInOverlap > 0) {
+            const displacement = calculateDisplacementPerStand(sb.section, 'metric', session.displacementMode);
+            const sectionVolume = displacement * standsInOverlap;
+            totalVolume += sectionVolume;
+            console.log('[DEBUG calculated] section:', sb.section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+          }
+          accumulatedStands = sectionEnd;
+        }
       }
       
       const calcDirection = session.mode === 'POOH' ? -1 : 1;
@@ -714,7 +746,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     const updatedSession: TripSession = {
       ...session,
       mode: newMode,
-      currentStand: 0,
+      currentStand: newStand,
       segments: updatedSegments,
       activeSegmentId: newSegment.id,
       resetBaselineVolume: newResetBaselineVolume,
