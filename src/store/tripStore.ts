@@ -228,10 +228,11 @@ export const useTripStore = create<TripState>((set, get) => ({
       const endStand = newStand;
       let totalVolume = 0;
       
+      const isPOOH = session.mode === 'POOH';
       console.log('[DEBUG calculated] displacementMode:', session.displacementMode);
       console.log('[DEBUG calculated] session.mode at addStand:', session.mode);
       console.log('[DEBUG addStand] session.currentStand at start:', session.currentStand);
-      console.log('[DEBUG addStand] ======= POOH CHECK: session.mode === "POOH" is', session.mode === 'POOH');
+      console.log('[DEBUG addStand] ======= POOH CHECK: isPOOH is', isPOOH, 'mode:', session.mode);
       console.log('[DEBUG addStand] startStand:', startStand, 'endStand:', endStand);
       
       const totalStands = session.sections.reduce((sum, s) => sum + s.calculatedStands, 0);
@@ -239,8 +240,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       
       let accumulatedStands = 0;
       
-      if (session.mode === 'POOH') {
-        console.log('[DEBUG POOH] START - mode is POOH');
+      if (isPOOH) {
+        console.log('[DEBUG POOH] START - isPOOH is TRUE');
         
         const reversedSections = [...session.sections].reverse();
         
@@ -287,7 +288,7 @@ export const useTripStore = create<TripState>((set, get) => ({
         }
       }
       
-      const calcDirection = session.mode === 'POOH' ? -1 : 1;
+      const calcDirection = isPOOH ? -1 : 1;
       const incrementalVolume = totalVolume * calcDirection;
       calculatedCumulativeVolume = previousCalcVolume + incrementalVolume;
       console.log('[DEBUG calculated] totalVolume:', totalVolume, 'calcDirection:', calcDirection);
