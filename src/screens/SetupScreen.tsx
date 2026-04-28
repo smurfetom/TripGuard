@@ -33,12 +33,14 @@ type SetupScreenProps = {
   onStartTrip: () => void;
   onGoToStatus?: () => void;
   onGoToDiagnostics?: () => void;
+  editingSession?: any;
 };
 
-export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: SetupScreenProps) {
+export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics, editingSession }: SetupScreenProps) {
   const { colors, themeMode, setThemeMode } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const startSession = useTripStore((state) => state.startSession);
+  const updateSessionConfig = useTripStore((state) => state.updateSessionConfig);
   
   const [mode, setMode] = useState<TripMode>('RIH');
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric');
@@ -89,6 +91,25 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   };
 
   const reindexSections = (items: Section[]) => items.map((section, index) => ({ ...section, order: index }));
+
+  useEffect(() => {
+    if (editingSession) {
+      setMode(editingSession.mode);
+      setUnitSystem(editingSession.unitSystem);
+      setVolumeUnit(editingSession.volumeUnit);
+      setTolerance(editingSession.tolerance?.toString() || '0.5');
+      setTotalStands(editingSession.totalStands?.toString() || '');
+      setStartStand(editingSession.startStand?.toString() || '0');
+      setLoggingInterval(editingSession.loggingInterval?.toString() || '5');
+      setInitialTripTankVolume(editingSession.resetBaselineVolume?.toString() || '1.0');
+      setOpenEndDisplacement(editingSession.openEndDisplacement?.toString() || '0');
+      setClosedEndDisplacement(editingSession.closedEndDisplacement?.toString() || '0');
+      setAverageStandLength(editingSession.averageStandLength?.toString() || '28.83');
+      setSlugMudWeight(editingSession.slugMudWeight?.toString() || '1.5');
+      setHoleMudWeight(editingSession.holeMudWeight?.toString() || '1.18');
+      setSections(reindexSections(editingSession.sections || []));
+    }
+  }, [editingSession]);
 
   const applyTemplate = (template: SetupTemplate) => {
     const cloned = cloneTemplate(template);
@@ -298,6 +319,39 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
     });
     
     onStartTrip();
+  };
+
+  const handleUpdateTrip = () => {
+    const totalCalculated = sections.reduce((sum, s) => sum + s.calculatedStands, 0);
+    const finalTotalStands = totalCalculated > 0 ? totalCalculated : parseInt(totalStands, 10) || 0;
+    const startStandValue = parseInt(startStand, 10) || 0;
+    const openEndDisp = parseNumberInput(openEndDisplacement);
+    const closedEndDisp = parseNumberInput(closedEndDisplacement);
+    const avgStand = parseNumberInput(averageStandLength);
+
+    const hasRequiredInputs = sections.length > 0 || finalTotalStands > 0 || startStandValue > 0;
+    const hasDisplacement = openEndDisp > 0 || closedEndDisp > 0;
+    
+    if (!hasRequiredInputs || !hasDisplacement) {
+      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Total Stands or Start Stand, AND enter Open End or Closed End displacement values.');
+      return;
+    }
+
+    updateSessionConfig({
+      mode,
+      unitSystem,
+      volumeUnit,
+      tolerance: parseFloat(tolerance) || 0.5,
+      totalStands: finalTotalStands,
+      sections,
+      startStand: startStandValue,
+      loggingInterval: parseInt(loggingInterval, 10) || 5,
+      openEndDisplacement: openEndDisp,
+      closedEndDisplacement: closedEndDisp,
+      averageStandLength: avgStand,
+    });
+    
+    Alert.alert('Trip Updated', 'Configuration has been updated.');
   };
 
   const totalSectionStands = sections.reduce((sum, s) => sum + s.calculatedStands, 0);
@@ -695,12 +749,21 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
         </ScrollView>
         
         <View style={styles.footer}>
-          <Button
-            title="Start Trip"
-            onPress={handleStartTrip}
-            size="large"
-            disabled={!canStartTrip}
-          />
+          {editingSession ? (
+            <Button
+              title="Update Trip"
+              onPress={handleUpdateTrip}
+              size="large"
+              disabled={!canStartTrip}
+            />
+          ) : (
+            <Button
+              title="Start Trip"
+              onPress={handleStartTrip}
+              size="large"
+              disabled={!canStartTrip}
+            />
+          )}
         </View>
       </KeyboardAvoidingView>
 

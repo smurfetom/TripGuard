@@ -57,6 +57,7 @@ interface TripState {
   clearCurrentSession: () => Promise<void>;
   switchMode: (newMode: TripMode, newStand: number, resetVolumes: boolean) => void;
   setDisplacementMode: (mode: 'open_end' | 'closed_end') => void;
+  updateSessionConfig: (updates: Partial<TripConfig>) => void;
 }
 
 function normalizeSession(session: TripSession): TripSession {
@@ -835,6 +836,20 @@ export const useTripStore = create<TripState>((set, get) => ({
     set({ session: updatedSession });
     saveSession(updatedSession);
     console.log('=== setDisplacementMode COMPLETE ===');
+  },
+
+  updateSessionConfig: (updates: Partial<TripConfig>) => {
+    const { session, currentTotalVolume, currentExpectedTT, actualCumulativeVolume, calculatedCumulativeVolume, currentDisplayStand, currentSection } = get();
+    if (!session || !session.isActive) return;
+
+    const updatedSession: TripSession = {
+      ...session,
+      ...updates,
+      updatedAt: Date.now(),
+    };
+
+    set({ session: updatedSession });
+    saveSession(updatedSession);
   },
 
   clearCurrentSession: async () => {

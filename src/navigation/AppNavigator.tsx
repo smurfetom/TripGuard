@@ -68,7 +68,12 @@ export function AppNavigator() {
     return <DiagnosticsScreen onClose={() => setScreen('Setup')} />;
   }
 
-  return <SetupScreen onStartTrip={() => setScreen('Driller')} onGoToStatus={() => setScreen('Status')} onGoToDiagnostics={() => setScreen('Diagnostics')} />;
+  return <SetupScreen 
+    onStartTrip={() => setScreen('Driller')} 
+    onGoToStatus={() => setScreen('Status')} 
+    onGoToDiagnostics={() => setScreen('Diagnostics')}
+    editingSession={session}
+  />;
 }
 
 const styles = StyleSheet.create({
