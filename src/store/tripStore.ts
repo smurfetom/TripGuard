@@ -229,8 +229,9 @@ export const useTripStore = create<TripState>((set, get) => ({
       let totalVolume = 0;
       
       console.log('[DEBUG calculated] displacementMode:', session.displacementMode);
-      console.log('[DEBUG calculated] session.mode:', session.mode);
+      console.log('[DEBUG calculated] session.mode at addStand:', session.mode);
       console.log('[DEBUG addStand] session.currentStand at start:', session.currentStand);
+      console.log('[DEBUG addStand] ======= POOH CHECK: session.mode === "POOH" is', session.mode === 'POOH');
       console.log('[DEBUG addStand] startStand:', startStand, 'endStand:', endStand);
       
       const totalStands = session.sections.reduce((sum, s) => sum + s.calculatedStands, 0);
@@ -239,12 +240,14 @@ export const useTripStore = create<TripState>((set, get) => ({
       let accumulatedStands = 0;
       
       if (session.mode === 'POOH') {
+        console.log('[DEBUG POOH] START - mode is POOH');
+        
         const reversedSections = [...session.sections].reverse();
         
         let standsInRange = startStand - endStand;
         let currentStandInRange = startStand;
         
-        console.log('[DEBUG POOH] standsInRange:', standsInRange, 'currentStandInRange:', currentStandInRange);
+        console.log('[DEBUG POOH] standsInRange:', standsInRange, 'currentStandInRange:', currentStandInRange, 'sections:', reversedSections.map(s => s.name));
         
         for (const section of reversedSections) {
           const sectionStands = section.calculatedStands;
@@ -258,11 +261,12 @@ export const useTripStore = create<TripState>((set, get) => ({
             const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
             const sectionVolume = displacement * standsInOverlap;
             totalVolume += sectionVolume;
-            console.log('[DEBUG calculated] POOH section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume, 'sectionStart:', sectionStart, 'sectionEnd:', sectionEnd);
+            console.log('[DEBUG POOH] section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
           }
           
           currentStandInRange -= sectionStands;
         }
+        console.log('[DEBUG POOH] totalVolume:', totalVolume);
       } else {
         for (const section of session.sections) {
           const sectionStart = accumulatedStands + 1;
