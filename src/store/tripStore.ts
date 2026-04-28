@@ -329,8 +329,10 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const diff = calculateDiff(currentTotalVolume, expectedTotalVolume);
     const status = getDeviationStatus(diff, session.tolerance);
-    const displayStand = getDisplayStandNumber(activeSegment.startStand, newStand, session.mode);
-    console.log('[DEBUG addStand] displayStand:', displayStand, 'activeSegment.startStand:', activeSegment.startStand, 'newStand:', newStand, 'mode:', session.mode);
+    const displayStand = session.mode === 'POOH'
+      ? session.currentStand
+      : getDisplayStandNumber(activeSegment.startStand, newStand, session.mode);
+    console.log('[DEBUG addStand] displayStand:', displayStand, 'activeSegment.startStand:', activeSegment.startStand, 'newStand:', newStand, 'mode:', session.mode, 'session.currentStand:', session.currentStand);
 
     const newEvent: Event = {
       id: createId(),
@@ -785,7 +787,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       calculatedCumulativeVolume: newCalculatedCumulativeVolume,
       gainLossVolume: newGainLossVolume,
       currentTotalVolume: resetVolumes ? currentTotalVolume : currentTotalVolume,
-      currentDisplayStand: getDisplayStandNumber(newStand, 0, newMode),
+      currentDisplayStand: newMode === 'POOH' ? newStand : getDisplayStandNumber(newStand, 0, newMode),
     });
     console.log('[DEBUG switchMode] session.currentStand AFTER set():', get().session.currentStand);
     console.log('[DEBUG switchMode] calling saveSession...');
