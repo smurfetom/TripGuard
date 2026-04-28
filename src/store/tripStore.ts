@@ -240,24 +240,28 @@ export const useTripStore = create<TripState>((set, get) => ({
       
       if (session.mode === 'POOH') {
         const reversedSections = [...session.sections].reverse();
-        let reversedAccumulated = 0;
+        
+        let standsInRange = startStand - endStand;
+        let currentStandInRange = startStand;
+        
+        console.log('[DEBUG POOH] standsInRange:', standsInRange, 'currentStandInRange:', currentStandInRange);
         
         for (const section of reversedSections) {
-          const sectionStart = reversedAccumulated + 1;
-          const sectionEnd = reversedAccumulated + section.calculatedStands;
+          const sectionStands = section.calculatedStands;
           
-          const overlapStart = Math.max(startStand + 1, sectionStart);
-          const overlapEnd = Math.min(endStand, sectionEnd);
-          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+          const sectionStart = currentStandInRange - sectionStands + 1;
+          const sectionEnd = currentStandInRange;
+          
+          const standsInOverlap = Math.max(0, Math.min(currentStandInRange, sectionEnd) - Math.max(endStand + 1, sectionStart) + 1);
           
           if (standsInOverlap > 0) {
             const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
             const sectionVolume = displacement * standsInOverlap;
             totalVolume += sectionVolume;
-            console.log('[DEBUG calculated] POOH section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+            console.log('[DEBUG calculated] POOH section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume, 'sectionStart:', sectionStart, 'sectionEnd:', sectionEnd);
           }
           
-          reversedAccumulated = sectionEnd;
+          currentStandInRange -= sectionStands;
         }
       } else {
         for (const section of session.sections) {
@@ -768,8 +772,10 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentTotalVolume: resetVolumes ? currentTotalVolume : currentTotalVolume,
       currentDisplayStand: getDisplayStandNumber(newStand, 0, newMode),
     });
-    console.log('[DEBUG switchMode] session.currentStand AFTER:', updatedSession.currentStand);
+    console.log('[DEBUG switchMode] session.currentStand AFTER set():', get().session.currentStand);
+    console.log('[DEBUG switchMode] calling saveSession...');
     saveSession(updatedSession);
+    console.log('[DEBUG switchMode] saveSession done, session.currentStand:', get().session.currentStand);
   },
 
   setDisplacementMode: (mode: 'open_end' | 'closed_end') => {
