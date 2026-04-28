@@ -302,7 +302,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   const editorSectionLength = parseNumberInput(sectionLength);
   const editorCalculatedStands = editorStandLength > 0 ? Math.round(editorSectionLength / editorStandLength) : 0;
   const editorActiveDisplacement = getActiveDisplacementPerStand();
-  const canStartTrip = sections.length > 0 || parseInt(totalStands, 10) > 0;
+  const canStartTrip = sections.length > 0 || startStand.trim() !== '' || totalStands.trim() !== '';
 
   return (
     <SafeAreaView style={styles.container}>
