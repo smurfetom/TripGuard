@@ -261,7 +261,7 @@ export const useTripStore = create<TripState>((set, get) => ({
           const sectionStart = prevSectionEnd - sectionStands + 1;
           const sectionEnd = prevSectionEnd;
           
-          const overlapStart = Math.max(endStand, sectionStart);
+          const overlapStart = Math.max(endStand + 1, sectionStart);
           const overlapEnd = Math.min(startStand, sectionEnd);
           const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
           
