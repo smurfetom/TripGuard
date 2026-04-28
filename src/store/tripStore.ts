@@ -231,35 +231,52 @@ export const useTripStore = create<TripState>((set, get) => ({
       console.log('[DEBUG calculated] displacementMode:', session.displacementMode);
       console.log('[DEBUG calculated] session.mode:', session.mode);
       console.log('[DEBUG addStand] session.currentStand at start:', session.currentStand);
+      console.log('[DEBUG addStand] startStand:', startStand, 'endStand:', endStand);
+      
+      const totalStands = session.sections.reduce((sum, s) => sum + s.calculatedStands, 0);
+      console.log('[DEBUG addStand] totalStands:', totalStands);
       
       let accumulatedStands = 0;
-      for (const section of session.sections) {
-        const sectionStart = accumulatedStands + 1;
-        const sectionEnd = accumulatedStands + section.calculatedStands;
+      
+      if (session.mode === 'POOH') {
+        const reversedSections = [...session.sections].reverse();
+        let reversedAccumulated = 0;
         
-        let overlapStart, overlapEnd;
-        
-        if (session.mode === 'POOH') {
-          const totalStands = session.sections.reduce((sum, s) => sum + s.calculatedStands, 0);
-          const reversedSectionStart = totalStands - sectionEnd + 1;
-          const reversedSectionEnd = totalStands - sectionStart + 1;
-          overlapStart = Math.max(startStand + 1, reversedSectionStart);
-          overlapEnd = Math.min(endStand, reversedSectionEnd);
-        } else {
-          overlapStart = Math.max(startStand + 1, sectionStart);
-          overlapEnd = Math.min(endStand, sectionEnd);
+        for (const section of reversedSections) {
+          const sectionStart = reversedAccumulated + 1;
+          const sectionEnd = reversedAccumulated + section.calculatedStands;
+          
+          const overlapStart = Math.max(startStand + 1, sectionStart);
+          const overlapEnd = Math.min(endStand, sectionEnd);
+          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+          
+          if (standsInOverlap > 0) {
+            const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
+            const sectionVolume = displacement * standsInOverlap;
+            totalVolume += sectionVolume;
+            console.log('[DEBUG calculated] POOH section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+          }
+          
+          reversedAccumulated = sectionEnd;
         }
-        
-        const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
-        
-        if (standsInOverlap > 0) {
-          const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
-          const sectionVolume = displacement * standsInOverlap;
-          totalVolume += sectionVolume;
-          console.log('[DEBUG calculated] section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+      } else {
+        for (const section of session.sections) {
+          const sectionStart = accumulatedStands + 1;
+          const sectionEnd = accumulatedStands + section.calculatedStands;
+          
+          const overlapStart = Math.max(startStand + 1, sectionStart);
+          const overlapEnd = Math.min(endStand, sectionEnd);
+          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+          
+          if (standsInOverlap > 0) {
+            const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
+            const sectionVolume = displacement * standsInOverlap;
+            totalVolume += sectionVolume;
+            console.log('[DEBUG calculated] RIH section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
+          }
+          
+          accumulatedStands = sectionEnd;
         }
-        
-        accumulatedStands = sectionEnd;
       }
       
       const calcDirection = session.mode === 'POOH' ? -1 : 1;
@@ -694,6 +711,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     console.log('[DEBUG switchMode] newStand:', newStand);
     console.log('[DEBUG switchMode] resetVolumes:', resetVolumes);
     console.log('[DEBUG switchMode] session.mode before:', session.mode);
+    console.log('[DEBUG switchMode] session.currentStand BEFORE:', session.currentStand);
 
     let newSegment: Segment;
     let updatedSegments: Segment[];
@@ -750,6 +768,7 @@ export const useTripStore = create<TripState>((set, get) => ({
       currentTotalVolume: resetVolumes ? currentTotalVolume : currentTotalVolume,
       currentDisplayStand: getDisplayStandNumber(newStand, 0, newMode),
     });
+    console.log('[DEBUG switchMode] session.currentStand AFTER:', updatedSession.currentStand);
     saveSession(updatedSession);
   },
 
