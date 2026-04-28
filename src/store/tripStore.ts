@@ -232,54 +232,34 @@ export const useTripStore = create<TripState>((set, get) => ({
       console.log('[DEBUG calculated] session.mode:', session.mode);
       console.log('[DEBUG addStand] session.currentStand at start:', session.currentStand);
       
-      const sectionsToUse = session.mode === 'POOH' 
-        ? [...session.sections].reverse() 
-        : session.sections;
-      
       let accumulatedStands = 0;
-      const sectionBoundaries = sectionsToUse.map(section => {
-        const start = accumulatedStands + 1;
-        const end = accumulatedStands + section.calculatedStands;
-        const result = { section, start, end };
-        accumulatedStands = end;
-        return result;
-      });
-      
-      if (session.mode === 'POOH') {
-        const totalStands = accumulatedStands;
-        accumulatedStands = 0;
-        for (const sb of sectionBoundaries) {
-          const sectionStart = totalStands - sb.end + 1;
-          const sectionEnd = totalStands - sb.start + 1;
-          const overlapStart = Math.max(startStand + 1, sectionStart);
-          const overlapEnd = Math.min(endStand, sectionEnd);
-          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
-          
-          if (standsInOverlap > 0) {
-            const displacement = calculateDisplacementPerStand(sb.section, 'metric', session.displacementMode);
-            const sectionVolume = displacement * standsInOverlap;
-            totalVolume += sectionVolume;
-            console.log('[DEBUG calculated] section:', sb.section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
-          }
-          accumulatedStands = sectionEnd;
+      for (const section of session.sections) {
+        const sectionStart = accumulatedStands + 1;
+        const sectionEnd = accumulatedStands + section.calculatedStands;
+        
+        let overlapStart, overlapEnd;
+        
+        if (session.mode === 'POOH') {
+          const totalStands = session.sections.reduce((sum, s) => sum + s.calculatedStands, 0);
+          const reversedSectionStart = totalStands - sectionEnd + 1;
+          const reversedSectionEnd = totalStands - sectionStart + 1;
+          overlapStart = Math.max(startStand + 1, reversedSectionStart);
+          overlapEnd = Math.min(endStand, reversedSectionEnd);
+        } else {
+          overlapStart = Math.max(startStand + 1, sectionStart);
+          overlapEnd = Math.min(endStand, sectionEnd);
         }
-      } else {
-        accumulatedStands = 0;
-        for (const sb of sectionBoundaries) {
-          const sectionStart = sb.start;
-          const sectionEnd = sb.end;
-          const overlapStart = Math.max(startStand + 1, sectionStart);
-          const overlapEnd = Math.min(endStand, sectionEnd);
-          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
-          
-          if (standsInOverlap > 0) {
-            const displacement = calculateDisplacementPerStand(sb.section, 'metric', session.displacementMode);
-            const sectionVolume = displacement * standsInOverlap;
-            totalVolume += sectionVolume;
-            console.log('[DEBUG calculated] section:', sb.section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
-          }
-          accumulatedStands = sectionEnd;
+        
+        const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
+        
+        if (standsInOverlap > 0) {
+          const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
+          const sectionVolume = displacement * standsInOverlap;
+          totalVolume += sectionVolume;
+          console.log('[DEBUG calculated] section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
         }
+        
+        accumulatedStands = sectionEnd;
       }
       
       const calcDirection = session.mode === 'POOH' ? -1 : 1;

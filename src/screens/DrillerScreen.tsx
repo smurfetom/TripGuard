@@ -87,6 +87,7 @@ export function DrillerScreen({ onOpenMirror, onNewTrip }: DrillerScreenProps) {
   const handleModeSwitchConfirm = () => {
     if (!session || !pendingModeSwitch) return;
     const newStand = parseInt(modeSwitchStand, 10);
+    console.log('[DEBUG handleModeSwitchConfirm] newStand:', newStand);
     if (isNaN(newStand) || newStand < 0 || newStand > session.totalStands) {
       Alert.alert('Invalid Stand', 'Please enter a valid stand number.');
       return;
