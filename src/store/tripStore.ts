@@ -200,6 +200,9 @@ export const useTripStore = create<TripState>((set, get) => ({
 
     const newStand = (() => {
       if (step) {
+        if (session.mode === 'POOH') {
+          return Math.max(session.currentStand - step, 0);
+        }
         return Math.min(session.currentStand + step, session.totalStands);
       }
 
@@ -215,6 +218,9 @@ export const useTripStore = create<TripState>((set, get) => ({
         session.mode
       );
 
+      if (session.mode === 'POOH') {
+        return Math.max(nextProgressedStand, 0);
+      }
       return Math.min(nextProgressedStand, session.totalStands);
     })();
     const accumulatedSlugCorrection = session.accumulatedSlugCorrectionVolume || 0;
@@ -245,18 +251,20 @@ export const useTripStore = create<TripState>((set, get) => ({
         
         const reversedSections = [...session.sections].reverse();
         
-        let standsInRange = startStand - endStand;
-        let currentStandInRange = startStand;
+        console.log('[DEBUG POOH] startStand:', startStand, 'endStand:', endStand, 'sections:', reversedSections.map(s => s.name));
         
-        console.log('[DEBUG POOH] standsInRange:', standsInRange, 'currentStandInRange:', currentStandInRange, 'sections:', reversedSections.map(s => s.name));
+        let prevSectionEnd = totalStands;
         
         for (const section of reversedSections) {
           const sectionStands = section.calculatedStands;
+          const sectionStart = prevSectionEnd - sectionStands + 1;
+          const sectionEnd = prevSectionEnd;
           
-          const sectionStart = currentStandInRange - sectionStands + 1;
-          const sectionEnd = currentStandInRange;
+          const overlapStart = Math.max(startStand + 1, sectionStart);
+          const overlapEnd = Math.min(endStand, sectionEnd);
+          const standsInOverlap = Math.max(0, overlapEnd - overlapStart + 1);
           
-          const standsInOverlap = Math.max(0, Math.min(currentStandInRange, sectionEnd) - Math.max(endStand + 1, sectionStart) + 1);
+          console.log('[DEBUG POOH] section:', section.name, 'sectionStart:', sectionStart, 'sectionEnd:', sectionEnd, 'overlapStart:', overlapStart, 'overlapEnd:', overlapEnd, 'standsInOverlap:', standsInOverlap);
           
           if (standsInOverlap > 0) {
             const displacement = calculateDisplacementPerStand(section, 'metric', session.displacementMode);
@@ -265,7 +273,7 @@ export const useTripStore = create<TripState>((set, get) => ({
             console.log('[DEBUG POOH] section:', section.name, 'displacement:', displacement, 'stands:', standsInOverlap, 'volume:', sectionVolume);
           }
           
-          currentStandInRange -= sectionStands;
+          prevSectionEnd = sectionStart - 1;
         }
         console.log('[DEBUG POOH] totalVolume:', totalVolume);
       } else {
