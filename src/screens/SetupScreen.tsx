@@ -265,8 +265,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       return;
     }
 
-    if (sections.length === 0 && openEndDisp <= 0 && closedEndDisp <= 0 && startStandValue <= 0) {
-      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Open End / Closed End displacement values or set a start stand.');
+    if (sections.length === 0 && totalStands <= 0 && openEndDisp <= 0 && closedEndDisp <= 0) {
+      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Total Stands or Open End / Closed End displacement values.');
       return;
     }
 
@@ -302,7 +302,7 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
   const editorSectionLength = parseNumberInput(sectionLength);
   const editorCalculatedStands = editorStandLength > 0 ? Math.round(editorSectionLength / editorStandLength) : 0;
   const editorActiveDisplacement = getActiveDisplacementPerStand();
-  const canStartTrip = sections.length > 0 || startStand.trim() !== '' || totalStands.trim() !== '';
+  const canStartTrip = sections.length > 0 || startStand.trim() !== '' || totalStands.trim() !== '' || openEndDisplacement.trim() !== '' || closedEndDisplacement.trim() !== '';
 
   return (
     <SafeAreaView style={styles.container}>
