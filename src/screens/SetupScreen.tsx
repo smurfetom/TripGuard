@@ -265,8 +265,11 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       return;
     }
 
-    if (sections.length === 0 && totalStands <= 0 && openEndDisp <= 0 && closedEndDisp <= 0) {
-      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Total Stands or Open End / Closed End displacement values.');
+    const hasRequiredInputs = sections.length > 0 || totalStands > 0 || startStandValue > 0;
+    const hasDisplacement = openEndDisp > 0 || closedEndDisp > 0;
+    
+    if (!hasRequiredInputs || !hasDisplacement) {
+      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Total Stands or Start Stand, AND enter Open End or Closed End displacement values.');
       return;
     }
 
