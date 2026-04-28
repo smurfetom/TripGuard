@@ -229,6 +229,8 @@ export const useTripStore = create<TripState>((set, get) => ({
       let totalVolume = 0;
       
       console.log('[DEBUG calculated] displacementMode:', session.displacementMode);
+      console.log('[DEBUG calculated] session.mode:', session.mode);
+      console.log('[DEBUG addStand] session.currentStand at start:', session.currentStand);
       
       const sectionsToUse = session.mode === 'POOH' 
         ? [...session.sections].reverse() 
@@ -707,6 +709,11 @@ export const useTripStore = create<TripState>((set, get) => ({
   switchMode: (newMode: TripMode, newStand: number, resetVolumes: boolean) => {
     const { session, currentTotalVolume, currentExpectedTT, actualCumulativeVolume, calculatedCumulativeVolume, currentDisplayStand } = get();
     if (!session || !session.isActive) return;
+
+    console.log('[DEBUG switchMode] newMode:', newMode);
+    console.log('[DEBUG switchMode] newStand:', newStand);
+    console.log('[DEBUG switchMode] resetVolumes:', resetVolumes);
+    console.log('[DEBUG switchMode] session.mode before:', session.mode);
 
     let newSegment: Segment;
     let updatedSegments: Segment[];
