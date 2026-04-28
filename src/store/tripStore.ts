@@ -330,7 +330,7 @@ export const useTripStore = create<TripState>((set, get) => ({
     const diff = calculateDiff(currentTotalVolume, expectedTotalVolume);
     const status = getDeviationStatus(diff, session.tolerance);
     const displayStand = session.mode === 'POOH'
-      ? session.currentStand
+      ? newStand
       : getDisplayStandNumber(activeSegment.startStand, newStand, session.mode);
     console.log('[DEBUG addStand] displayStand:', displayStand, 'activeSegment.startStand:', activeSegment.startStand, 'newStand:', newStand, 'mode:', session.mode, 'session.currentStand:', session.currentStand);
 
