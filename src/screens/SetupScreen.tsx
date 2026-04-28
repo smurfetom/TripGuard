@@ -265,8 +265,8 @@ export function SetupScreen({ onStartTrip, onGoToStatus, onGoToDiagnostics }: Se
       return;
     }
 
-    if (sections.length === 0 && openEndDisp <= 0 && closedEndDisp <= 0) {
-      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Open End / Closed End displacement values.');
+    if (sections.length === 0 && openEndDisp <= 0 && closedEndDisp <= 0 && startStandValue <= 0) {
+      Alert.alert('Invalid Trip Sheet Inputs', 'Please add sections or enter Open End / Closed End displacement values or set a start stand.');
       return;
     }
 
